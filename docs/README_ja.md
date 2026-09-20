@@ -49,7 +49,7 @@ Update Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/ma
 
 | | |
 |---|---|
-| 💰 **完全無料** | すべてのツールはオープンソース、すべてのAPIは無料。唯一のコストはサーバープロキシ（月額$1）の可能性のみ — ローカルPCでは不要 |
+| 💰 **無料・オープンソース** | Agent Reach 自体は無料です。Tavily など外部サービスの利用上限・料金は各サービスのプランに従います |
 | 🔒 **プライバシー安全** | Cookieはローカルに保存。アップロードされることはありません。完全オープンソース — いつでも監査可能 |
 | 🔄 **常に最新** | 上流ツール（yt-dlp、twitter-cli、rdt-cli、Jina Reader等）を定期的に追跡・更新 |
 | 🤖 **あらゆるエージェントに対応** | Claude Code、OpenClaw、Cursor、Windsurf… コマンドを実行できるすべてのエージェント |
@@ -65,11 +65,11 @@ Update Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/ma
 | 🐦 **Twitter/X** | 閲覧・検索 | 設定不要 / Cookie | 単一ツイートはすぐに閲覧可能。Cookieで検索、タイムライン、投稿が解放（[twitter-cli](https://github.com/public-clis/twitter-cli)） |
 | 📕 **小紅書** | 閲覧・検索・コメント | OpenCLI / Cookie | OpenCLI はユーザー管理の既存 Chrome セッションだけを使用。MCP/旧ツールは Cookie-Editor を使用 |
 | 💼 **LinkedIn** | Jina Reader（公開ページ） | プロフィール、企業、求人検索 | エージェントに「LinkedInの設定を手伝って」と伝えてください |
-| 💬 **WeChat記事** | 検索 + 閲覧 | 設定不要 | WeChat公式アカウント記事の検索+閲覧（完全Markdown）（[Exa](https://exa.ai) + [Camoufox](https://github.com/daijro/camoufox)（オプション）） |
+| 💬 **WeChat記事** | 検索 + 閲覧 | Exa MCP | Exa MCP endpoint の設定・認証・上限に応じて利用可能。Camoufox は任意 |
 | 💻 **V2EX** | 人気トピック・ノードトピック・トピック詳細+返信・ユーザープロフィール | 設定不要 | 公開JSON API、認証不要。技術コミュニティのコンテンツに最適 |
 | 📈 **雪球（Xueqiu）** | 株価・検索・人気投稿・人気銘柄 | 設定不要 | 公開APIで自動セッションCookie、ログイン不要 |
 | 🎙️ **小宇宙Podcast** | 文字起こし | 無料APIキー | Podcast音声 → Groq Whisper（無料）による完全テキスト文字起こし |
-| 🔍 **Web検索** | 検索 | 自動設定 | インストール時に自動設定、無料、APIキー不要（[Exa](https://exa.ai)、[mcporter](https://github.com/nicepkg/mcporter)経由） |
+| 🔍 **Web検索** | 検索 | Tavily APIキー / Exa MCP | 一般検索は Tavily、専門タスクや代替経路は Exa。MCP の認証と上限は endpoint によります |
 | 📦 **GitHub** | 閲覧・検索 | 設定不要 | [gh CLI](https://cli.github.com) 搭載。公開リポジトリはすぐ使える。`gh auth login`でFork、Issue、PRが解放 |
 | 📺 **YouTube** | 閲覧・**検索** | 設定不要 | 字幕 + 1800以上の動画サイトでの検索（[yt-dlp](https://github.com/yt-dlp/yt-dlp) ⭐148K） |
 | 📺 **Bilibili** | 閲覧・**検索** | 設定不要 | [bili-cli](https://github.com/public-clis/bilibili-cli) で検索・動画情報（ログイン不要）、字幕は OpenCLI。yt-dlp は Bilibili の 412 制限により使用しません |
@@ -169,8 +169,8 @@ $ agent-reach doctor
   ✅ RSS/Atomフィード — feedparser
   ✅ Webページ（任意のURL） — Jina Reader API
 
-🔍 検索（無料Exaキーで解放）:
-  ⬜ Webセマンティック検索 — exa.aiで無料キーを取得
+🔍 検索:
+  ⬜ 一般検索には Tavily API キーを設定。専門タスクや代替経路には Exa MCP を使用し、認証・上限は endpoint によります
 
 🔧 設定可能:
   ⚠️  Twitter/X — doctor は明示的な認証情報の有無だけを確認。上流CLIには環境変数が必要
@@ -207,11 +207,13 @@ channels/
 ├── xiaohongshu.py  → OpenCLI ▸ xiaohongshu-mcp ▸ xhs-cli
 ├── linkedin.py     → linkedin-mcp    ← LinkedIn APIに差し替え可能…
 ├── rss.py          → feedparser      ← atomaなどに差し替え可能…
-├── exa_search.py   → mcporter MCP    ← Tavily、SerpAPIなどに差し替え可能…
+├── exa_search.py   → Tavily REST ▸ Exa via mcporter
 └── __init__.py     → チャンネルレジストリ（doctor チェック用）
 ```
 
 各チャンネルファイルは、上流ツールがインストールされ動作しているかをチェックするだけです（`agent-reach doctor` 用の `check()` メソッド）。実際の閲覧や検索は上流ツールを直接呼び出して行います。
+
+Web検索は例外です。Agent が一般検索には Tavily、セマンティック/学術/エンティティ検索には Exa を選択します。Doctor は Tavily の使用量 API とローカルの Exa MCP 設定のみを確認し、検索の振り分けや Exa endpoint のリアルタイム接続確認は行いません。
 
 ### 現在のツール選定
 
@@ -221,12 +223,12 @@ channels/
 | ツイート閲覧 | [twitter-cli](https://github.com/public-clis/twitter-cli) | 2.1K Star、Cookie認証、検索/閲覧/タイムライン/長文 |
 | YouTube 字幕 + 検索 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | YouTube と対応動画サイト向け（Bilibili には使用しません） |
 | Bilibili | [bili-cli](https://github.com/public-clis/bilibili-cli) ▸ OpenCLI ▸ 検索 API | yt-dlp は 412 制限で退役。bili-cli はログイン不要で検索・閲覧可能 |
-| Web検索 | [Exa](https://exa.ai)（[mcporter](https://github.com/nicepkg/mcporter)経由） | AIセマンティック検索、MCP統合、APIキー不要 |
+| Web検索 | Tavily REST API + [Exa](https://exa.ai)（[mcporter](https://github.com/nicepkg/mcporter)経由） | 一般検索は Tavily、専門タスクや代替経路は Exa。認証・上限・料金は endpoint によります |
 | GitHub | [gh CLI](https://cli.github.com) | 公式ツール、認証後フルAPI |
 | RSS閲覧 | [feedparser](https://github.com/kurtmckee/feedparser) | Pythonエコシステムの標準、⭐2.3K |
 | 小紅書 | [OpenCLI](https://github.com/jackwener/opencli)（デスクトップ）▸ [xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp)（サーバー）▸ xhs-cli | OpenCLI は既存のユーザー管理セッションのみ使用。その他は Cookie-Editor で手動設定 |
 | LinkedIn | [mcp-server-linkedin](https://github.com/stickerdaniel/linkedin-mcp-server) | ⭐900+、MCPサーバー、ブラウザ自動化 |
-| WeChat記事 | [Exa](https://exa.ai)（検索+閲覧）+ [Camoufox](https://github.com/daijro/camoufox)（オプション） | ゼロ設定で検索+全文閲覧、Camoufoxでオプション強化 |
+| WeChat記事 | [Exa](https://exa.ai)（検索+閲覧）+ [Camoufox](https://github.com/daijro/camoufox)（オプション） | Exa MCP endpoint の設定・認証・上限に応じて利用可能。Camoufox は任意 |
 | 小宇宙Podcast | `transcribe.sh` | `bash ~/.agent-reach/tools/xiaoyuzhou/transcribe.sh <URL>` |
 
 > 📌 これらは*現在*の選択です。気に入らなければファイルを差し替えるだけ。それがスキャフォールディングの要点です。
@@ -274,7 +276,7 @@ Agent Reach は [rdt-cli](https://github.com/public-clis/rdt-cli) でRedditに�
 <details>
 <summary><strong>Agent Reach は無料？APIのコストは？</strong></summary>
 
-100%無料でオープンソース。すべてのバックエンド（twitter-cli、rdt-cli、OpenCLI、bili-cli、yt-dlp、Jina Reader、Exa）は有料APIキーが不要な無料ツールです。ネットワーク上で特定サイトが遮断されている場合のみ、プロキシ費用が発生することがあります。
+Agent Reach 自体は無料のオープンソースです。ただし Tavily など外部サービスの無料枠と追加料金は各サービスのプランに従います。プロキシ費用が発生する場合もあります。
 </details>
 
 <details>

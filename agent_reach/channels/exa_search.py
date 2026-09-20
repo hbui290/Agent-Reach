@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Web search — task-aware Tavily primary with Exa specialization/fallback."""
+"""Web search health checks and task-routing hints for Tavily and Exa."""
 
 import os
 import re
@@ -69,8 +69,11 @@ class ExaSearchChannel(Channel):
             return None
         override = None
         for key in ("search_backend", "web_search_backend", f"{self.name}_backend"):
-            override = config.get(key)
-            if override:
+            candidate = config.get(key)
+            if candidate is not None:
+                candidate = str(candidate).strip()
+            if candidate:
+                override = candidate
                 break
         if not override:
             return None
@@ -79,7 +82,7 @@ class ExaSearchChannel(Channel):
             "tavily": self.TAVILY_BACKEND,
             "exa": self.EXA_BACKEND,
         }
-        target = aliases.get(str(override).strip().casefold(), str(override).strip())
+        target = aliases.get(override.casefold(), override)
         for backend in self.backends:
             if backend.casefold() == target.casefold() or backend.casefold().startswith(
                 target.casefold()
@@ -154,10 +157,7 @@ class ExaSearchChannel(Channel):
         api_key = config.get("tavily_api_key") if config else None
         api_key = api_key or os.environ.get("TAVILY_API_KEY")
         if not api_key:
-            return "off", (
-                "Tavily 未配置 API key。运行：\n"
-                "  agent-reach configure tavily-key"
-            )
+            return "off", ("Tavily 未配置 API key。运行：\n  agent-reach configure tavily-key")
 
         try:
             response = requests.get(
@@ -170,20 +170,70 @@ class ExaSearchChannel(Channel):
 
         if response.status_code == 200:
             try:
-                usage = response.json().get("key", {})
+                payload = response.json()
             except (TypeError, ValueError):
-                usage = {}
+                return "warn", "Tavily Usage API 返回了无效 JSON；将继续尝试 Exa。"
+            if not isinstance(payload, dict):
+                return "warn", "Tavily Usage API 返回了无效数据格式；将继续尝试 Exa。"
+
+            usage = payload.get("key")
+            account = payload.get("account", {})
+            if account is None:
+                account = {}
+            if not isinstance(usage, dict) or not isinstance(account, dict):
+                return "warn", "Tavily Usage API 返回了无效数据格式；将继续尝试 Exa。"
+
             used = usage.get("usage")
             limit = usage.get("limit")
-            suffix = f"（已用 {used}/{limit} credits）" if isinstance(
-                used, (int, float)
-            ) and isinstance(limit, (int, float)) else ""
+            counters = []
+            if self._is_usage_number(used) and self._is_usage_number(limit):
+                counters.append(f"key {used}/{limit}")
+
+            plan_used = account.get("plan_usage")
+            plan_limit = account.get("plan_limit")
+            paygo_used = account.get("paygo_usage")
+            paygo_limit = account.get("paygo_limit")
+            has_plan_counters = self._is_usage_number(plan_used) and self._is_usage_number(
+                plan_limit
+            )
+            has_paygo_counters = self._is_usage_number(paygo_used) and self._is_usage_number(
+                paygo_limit
+            )
+
+            if has_plan_counters:
+                counters.append(f"plan {plan_used}/{plan_limit}")
+            if has_paygo_counters:
+                counters.append(f"PAYG {paygo_used}/{paygo_limit}")
+            suffix = f"（{'；'.join(counters)} credits）" if counters else ""
+
+            key_exhausted = (
+                self._is_usage_number(used) and self._is_usage_number(limit) and used >= limit
+            )
+            if key_exhausted:
+                return "warn", f"Tavily API key 用量上限已用完；将继续尝试 Exa。{suffix}"
+
+            plan_available = has_plan_counters and plan_used < plan_limit
+            paygo_available = has_paygo_counters and paygo_used < paygo_limit
+            has_account_counters = has_plan_counters or has_paygo_counters
+            if has_account_counters and not (plan_available or paygo_available):
+                if has_plan_counters and has_paygo_counters:
+                    message = "Tavily 套餐与 PAYG 额度已用完；将继续尝试 Exa。"
+                elif has_plan_counters:
+                    message = "Tavily 套餐额度已用完，PAYG 余额无法确认；将继续尝试 Exa。"
+                else:
+                    message = "Tavily PAYG 额度已用完，套餐余额无法确认；将继续尝试 Exa。"
+                return "warn", f"{message}{suffix}"
+
             return "ok", f"Tavily API 可用{suffix}"
         if response.status_code == 401:
             return "warn", "Tavily API key 无效；将继续尝试 Exa。"
         if response.status_code == 429:
             return "warn", "Tavily API 请求受限；将继续尝试 Exa。"
         return "warn", f"Tavily API 检查失败（HTTP {response.status_code}）；将继续尝试 Exa。"
+
+    @staticmethod
+    def _is_usage_number(value):
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
 
     def _check_exa(self):
         if not shutil.which("mcporter"):

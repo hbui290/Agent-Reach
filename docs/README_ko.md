@@ -49,7 +49,7 @@ Update Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/ma
 
 | | |
 |---|---|
-| 💰 **완전 무료** | 모든 도구는 오픈 소스, 모든 API는 무료입니다. 유일한 비용은 서버 프록시(월 $1)일 수 있습니다 — 로컬 컴퓨터에서는 불필요 |
+| 💰 **무료 오픈 소스** | Agent Reach 자체는 무료입니다. Tavily 등 외부 서비스의 무료 한도와 사용 요금은 각 제공자의 요금제에 따릅니다 |
 | 🔒 **프라이버시 안전** | Cookie는 로컬에 유지됩니다. 업로드되지 않습니다. 완전 오픈 소스 — 언제든지 감사 가능 |
 | 🔄 **최신 상태 유지** | 업스트림 도구(yt-dlp, twitter-cli, rdt-cli, Jina Reader 등)를 추적하고 정기적으로 업데이트 |
 | 🤖 **모든 에이전트와 호환** | Claude Code, OpenClaw, Cursor, Windsurf... 명령을 실행할 수 있는 모든 에이전트 |
@@ -65,11 +65,11 @@ Update Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/ma
 | 🐦 **Twitter/X** | 읽기 · 검색 | Cookie | Cookie로 검색, 타임라인, 트윗 읽기, 아티클 읽기 가능 ([twitter-cli](https://github.com/public-clis/twitter-cli)) |
 | 📕 **XiaoHongShu** | 읽기 · 검색 · 댓글 | OpenCLI / Cookie | OpenCLI는 사용자가 관리하는 기존 Chrome 세션만 사용하며, MCP/기존 도구는 Cookie-Editor 사용 |
 | 💼 **LinkedIn** | Jina Reader (공개 페이지) | Cookie | 전체 프로필, 회사, 채용 공고 검색 가능. 에이전트에 "LinkedIn 설정 도와줘"라고 말하세요 |
-| 💬 **WeChat Articles** | 검색 + 읽기 | 없음 | Exa를 통한 WeChat 공식 계정 게시글 검색 + 읽기 (설정 없음) + 선택적 [Camoufox](https://github.com/daijro/camoufox) |
+| 💬 **WeChat Articles** | 검색 + 읽기 | Exa MCP | Exa MCP endpoint의 설정·인증·한도에 따라 이용 가능; 선택적 [Camoufox](https://github.com/daijro/camoufox) |
 | 💻 **V2EX** | 인기 주제 · 노드 주제 · 주제 상세 + 답글 · 사용자 프로필 | 없음 | 공개 JSON API, 인증 없음. 기술 커뮤니티 콘텐츠에 적합 |
 | 📈 **Xueqiu (雪球)** | 주식 시세 · 검색 · 인기 글 · 인기 종목 | 브라우저 Cookie | 에이전트에 "Xueqiu 설정 도와줘"라고 말하세요 |
 | 🎙️ **Xiaoyuzhou Podcast** | 음성 변환 | 무료 API key | Groq Whisper를 통한 팟캐스트 오디오 → 전체 텍스트 변환 (무료) |
-| 🔍 **Web Search** | 검색 | 자동 설정 | 설치 시 자동 설정, 무료, API key 불필요 ([Exa](https://exa.ai) via [mcporter](https://github.com/nicepkg/mcporter)) |
+| 🔍 **Web Search** | 검색 | Tavily API key / Exa MCP | 일반 검색은 Tavily, 전문 작업이나 대체 경로는 Exa. MCP 인증과 한도는 endpoint에 따라 다릅니다 |
 | 📦 **GitHub** | 읽기 · 검색 | 없음 | [gh CLI](https://cli.github.com) 기반. 공개 저장소는 즉시 사용 가능. `gh auth login`으로 Fork, Issue, PR 기능 활성화 |
 | 📺 **YouTube** | 읽기 · **검색** | 없음 | 자막 + 1800+ 비디오 사이트 검색 ([yt-dlp](https://github.com/yt-dlp/yt-dlp) ⭐148K) |
 | 📺 **Bilibili** | 읽기 · **검색** | 설정 없음 | [bili-cli](https://github.com/public-clis/bilibili-cli)로 검색·비디오 정보(로그인 불필요), 자막은 OpenCLI. yt-dlp는 Bilibili의 412 차단으로 사용하지 않음 |
@@ -169,8 +169,8 @@ $ agent-reach doctor
   ✅ RSS/Atom 피드 — feedparser
   ✅ 웹 페이지 (모든 URL) — Jina Reader API
 
-🔍 검색 (무료 Exa key로 잠금 해제):
-  ⬜ 웹 시맨틱 검색 — exa.ai에서 무료 key 발급
+🔍 검색:
+  ⬜ 일반 검색에는 Tavily API key를 설정합니다. 전문 작업이나 대체 경로로 Exa MCP를 사용하며 인증과 한도는 endpoint에 따라 다릅니다
 
 🔧 설정 가능:
   ⚠️  Twitter/X — doctor는 명시적 자격 증명의 존재만 확인하며, 업스트림 CLI에는 환경 변수가 필요
@@ -207,11 +207,13 @@ channels/
 ├── xiaohongshu.py  → OpenCLI ▸ xiaohongshu-mcp ▸ xhs-cli
 ├── linkedin.py     → linkedin-mcp    ← LinkedIn API로 교체...
 ├── rss.py          → feedparser      ← atoma로 교체...
-├── exa_search.py   → mcporter MCP    ← Tavily, SerpAPI로 교체...
+├── exa_search.py   → Tavily REST ▸ Exa via mcporter
 └── __init__.py     → 채널 레지스트리 (doctor 검사용)
 ```
 
 각 채널 파일은 업스트림 도구가 설치되어 작동하는지만 확인합니다(`agent-reach doctor`용 `check()` 메서드). 실제 읽기 및 검색은 업스트림 도구를 직접 호출하여 수행합니다.
+
+웹 검색은 예외입니다. Agent가 일반 검색에는 Tavily를, 의미/학술/엔터티 검색에는 Exa를 선택합니다. Doctor는 Tavily 사용량 API와 로컬 Exa MCP 설정만 확인하며, 검색을 분배하거나 Exa endpoint 연결을 실시간 검증하지 않습니다.
 
 ### 현재 도구 선택
 
@@ -222,12 +224,12 @@ channels/
 | Reddit | [rdt-cli](https://github.com/public-clis/rdt-cli) | 304 stars, cookie 인증, 검색 + 전체 글 + 댓글 |
 | YouTube 자막 + 검색 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | YouTube 및 지원 비디오 사이트용(Bilibili에는 사용하지 않음) |
 | Bilibili | [bili-cli](https://github.com/public-clis/bilibili-cli) ▸ OpenCLI ▸ 검색 API | yt-dlp는 412 차단으로 폐기. bili-cli는 로그인 없이 검색·읽기 가능 |
-| 웹 검색 | [Exa](https://exa.ai) via [mcporter](https://github.com/nicobailon/mcporter) | AI 시맨틱 검색, MCP 통합, API key 불필요 |
+| 웹 검색 | Tavily REST API + [Exa](https://exa.ai) via [mcporter](https://github.com/nicobailon/mcporter) | 일반 검색은 Tavily, 전문 작업이나 대체 경로는 Exa. 인증과 한도는 endpoint별로 다릅니다 |
 | GitHub | [gh CLI](https://cli.github.com) | 공식 도구, 인증 후 전체 API |
 | RSS 읽기 | [feedparser](https://github.com/kurtmckee/feedparser) | Python 생태계 표준, 2.3K stars |
 | XiaoHongShu | [OpenCLI](https://github.com/jackwener/opencli) (데스크톱) ▸ [xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp) (서버) ▸ xhs-cli | OpenCLI는 사용자가 관리하는 기존 세션만 사용하며, 그 외에는 Cookie-Editor로 수동 설정 |
 | LinkedIn | [mcp-server-linkedin](https://github.com/stickerdaniel/linkedin-mcp-server) | 1.2K stars, MCP 서버, 브라우저 자동화 |
-| WeChat Articles | [Exa](https://exa.ai) (검색 + 읽기) + [Camoufox](https://github.com/daijro/camoufox) (선택) | 설정 없이 검색 + 전체 글 읽기 |
+| WeChat Articles | [Exa](https://exa.ai) (검색 + 읽기) + [Camoufox](https://github.com/daijro/camoufox) (선택) | Exa MCP endpoint의 설정·인증·한도에 따라 이용 가능; Camoufox로 선택적 보강 |
 | Xiaoyuzhou Podcast | `transcribe.sh` | `bash ~/.agent-reach/tools/xiaoyuzhou/transcribe.sh <URL>` |
 
 > 📌 이것은 *현재* 선택입니다. 마음에 안 드나요? 파일을 교체하세요. 그것이 스캐폴딩의 전부입니다.
@@ -275,7 +277,7 @@ Agent Reach는 Reddit을 위해 [rdt-cli](https://github.com/public-clis/rdt-cli
 <details>
 <summary><strong>Agent Reach는 무료인가요? API 비용이 있나요?</strong></summary>
 
-100% 무료 오픈 소스입니다. 모든 백엔드(twitter-cli, rdt-cli, OpenCLI, bili-cli, yt-dlp, Jina Reader, Exa)는 유료 API key가 필요 없는 무료 도구입니다. 네트워크에서 특정 사이트가 차단된 경우에만 선택적으로 프록시 비용이 발생할 수 있습니다.
+Agent Reach 자체는 무료 오픈 소스입니다. 다만 Tavily 등 제3자 서비스의 무료 한도와 추가 사용 요금은 각 제공자의 요금제에 따릅니다. 프록시 비용이 발생할 수도 있습니다.
 </details>
 
 <details>

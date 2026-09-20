@@ -1,11 +1,14 @@
 # Exa Search 配置指南（Tavily 备选）
 
-Agent Reach 默认优先 Tavily；本指南配置 Exa 作为 MCP fallback。
+通用网页搜索使用 Tavily；本指南配置 Exa MCP，供论文、语义、公司/人物等专项任务
+使用，也可在 Tavily 不可用时作为备选。
 Agent Reach 自己不要求 `exa_api_key`；MCP 服务端是否需要认证由当前 Exa/mcporter 配置决定。
 需要配置 Tavily 时请先阅读 `guides/setup-tavily.md`。
 
 ## 功能说明
-Exa 是一个 AI 语义搜索引擎。通过 MCP 接入，**免费、无需 API Key**。配置后解锁：
+Exa 是一个 AI 语义搜索引擎，通过 mcporter MCP 接入。Agent Reach 不单独管理
+`EXA_API_KEY`；当前 MCP endpoint 是否需要认证、额度或产生费用，取决于 endpoint
+及其服务方案，不应假定所有 Exa MCP 服务都免费或免密。配置后可用：
 - 全网语义搜索
 - Reddit 搜索（通过 site:reddit.com）
 - Twitter 搜索（通过 site:x.com）
@@ -33,8 +36,8 @@ mcporter call exa.web_search_exa query=test numResults=1 "objective=Run a connec
 
 ## 需要用户手动做的步骤
 
-**无 Agent Reach 专用 key。** Exa 通过 MCP 接入；如果当前 MCP endpoint 要求认证，
-请按 Exa/mcporter 的官方配置方式提供，不要把 key 写进仓库或普通命令历史。
+**无 Agent Reach 专用 key 配置项。** Exa 通过 MCP 接入；如果当前 MCP endpoint 要求认证，
+请按该 endpoint 的官方配置方式提供，不要把 key 写进仓库或普通命令历史。
 
 如果 `agent-reach install --system` 因为网络问题没有配置 Exa，手动运行上面两条命令即可。
 

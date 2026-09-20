@@ -1277,7 +1277,8 @@ def _install_mcporter():
             print(f"  [X] mcporter install failed: {e}")
             return False
 
-    # Configure Exa MCP (free, no key needed) as the fallback backend.
+    # Configure the Exa MCP endpoint as a fallback; authentication and limits
+    # depend on the endpoint and are not verified by writing this config.
     try:
         from agent_reach.channels.mcporter import (
             McporterConfigError,
@@ -1308,7 +1309,10 @@ def _install_mcporter():
                 capture_output=True, encoding="utf-8", errors="replace", timeout=10,
             )
             if add_result.returncode == 0:
-                print("  ✅ Exa search configured (free, no API key needed)")
+                print(
+                    "  ✅ Exa MCP endpoint configured "
+                    "(authentication and limits depend on the endpoint)"
+                )
                 return True
             else:
                 print(
@@ -1317,7 +1321,7 @@ def _install_mcporter():
                 )
                 return False
         else:
-            print("  ✅ Exa search already configured")
+            print("  ✅ Exa MCP config entry exists; connectivity is not verified")
             return True
     except Exception:
         print("  [!]  Could not configure Exa. Run manually: mcporter config add exa https://mcp.exa.ai/mcp --scope home")
@@ -2062,13 +2066,14 @@ def _cmd_setup():
     print("=" * 40)
     print()
 
-    # Step 1: Tavily primary, Exa fallback
+    # Step 1: task-routed Tavily / Exa search configuration
     import shutil
     import subprocess
 
-    print("【推荐】全网搜索 — Tavily（首选）▸ Exa（备选）")
-    print("  Tavily 适合研究和正文抽取；Exa 免费、无需 API Key")
-    print("  配置 Tavily：agent-reach configure tavily-key --stdin")
+    print("【推荐】网页搜索 — Tavily 通用 ▸ Exa 专项/备选")
+    print("  Tavily 适合通用搜索；Exa 用于语义等专项任务或备选")
+    print("  Exa MCP 的认证、额度和费用取决于 endpoint")
+    print("  配置 Tavily（交互式隐藏输入）：agent-reach configure tavily-key")
     print()
     print("【备选】Exa（通过 mcporter）")
 

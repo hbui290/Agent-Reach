@@ -78,13 +78,17 @@ agent-reach install --env=auto --system
 > agent-reach install --env=auto
 > ```
 
-The default command checks core infrastructure (gh CLI, Node.js, mcporter, Tavily/Exa search, yt-dlp config) without changing the host. With explicit `--system` approval it installs/configures the missing pieces and activates these zero-config channels:
+The default command checks core infrastructure (gh CLI, Node.js, mcporter, Tavily/Exa search, yt-dlp config) without changing the host. With explicit `--system` approval it installs/configures the missing pieces. These channels need no API key or login:
 
-- Web (Jina Reader), YouTube, GitHub, RSS, Tavily Search (Exa fallback), V2EX, Bilibili (basic)
+- Web (Jina Reader), YouTube, public GitHub repositories, RSS, V2EX, Bilibili (basic)
 
-Tavily is optional and needs an API key. Configure it through hidden input with
-`agent-reach configure tavily-key --stdin`; without a key, Exa remains the active
-zero-config fallback.
+Search is configured separately: Tavily needs an API key; Exa uses an MCP endpoint configured through mcporter, whose authentication, limits, and pricing depend on that endpoint. Web search is task-routed by the Agent; Doctor does not dispatch search commands.
+
+Tavily is optional and needs an API key. Configure it with
+`agent-reach configure tavily-key` to use hidden interactive input. For automation,
+pipe the value through `--stdin` instead of typing it into a terminal. Without a
+Tavily key, Agent Reach can use the configured Exa MCP endpoint; its authentication,
+limits, and pricing depend on that endpoint.
 
 > 💡 **macOS / Homebrew Python 提示 `externally-managed-environment`？**
 > 这是 PEP 668 保护，不是 Agent Reach 本身的问题。优先用 `pipx install ...`，或先创建 `venv` 再安装。
@@ -406,7 +410,7 @@ If the user wants a different agent to handle it, let them choose.
 | `agent-reach configure twitter-cookies` | 通过隐藏输入保存 Twitter Cookie；直接调用仍需显式环境变量 |
 | `agent-reach configure proxy` | 通过隐藏输入保存代理地址；不是自动解锁开关 |
 | `agent-reach configure groq-key` | 通过隐藏输入配置小宇宙转录 Key |
-| `agent-reach configure tavily-key --stdin` | 通过隐藏输入配置 Tavily Search Key |
+| `agent-reach configure tavily-key` | 通过隐藏交互输入配置 Tavily Search Key；自动化时可从管道使用 `--stdin` |
 
 After installation, use upstream tools directly. See SKILL.md for the full command reference:
 
@@ -428,4 +432,4 @@ After installation, use upstream tools directly. See SKILL.md for the full comma
 | Boss直聘 | `boss` / Python public API | `agent-reach doctor`（浏览器 wt2 探测；`boss status` 只反映本地 session.enc）；搜索和 JD 见 `references/career.md` |
 | RSS | `feedparser` | `python3 -c "import feedparser; ..."` |
 
-> 多后端平台以 `agent-reach doctor --json` 的 `active_backend` 为准。
+> 对 Doctor 可实时验证的多后端平台，可参考 `agent-reach doctor --json` 的 `active_backend`。搜索渠道的该字段只表示健康检查结果，不决定 Tavily/Exa 的任务路由；详见 `agent_reach/skill/references/search.md`。

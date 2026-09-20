@@ -36,7 +36,8 @@ these platforms — do not invent your own approach.**
    before starting.
 3. **On failure, follow the retry chains in references/** — never guess
    commands.
-4. **For broad research tasks**: combine platforms (Tavily first, Exa fallback +
+4. **For broad research tasks**: combine platforms (Tavily for general web search;
+   Exa for semantic, academic, company/people searches or as a Tavily fallback +
    Twitter/Reddit for discussions + XiaoHongShu/Bilibili for Chinese
    perspectives), collect in parallel, then synthesize.
 5. **Watch versions for the user**: after finishing a substantial
@@ -178,7 +179,7 @@ Read the matching file when you need specifics (commands above cover the
 common cases; references hold per-backend command groups, caveats, retry
 chains — note: reference docs are written in Chinese, commands are universal):
 
-- [Search](references/search.md) — Tavily primary, Exa fallback
+- [Search](references/search.md) — Tavily for general search; Exa for specialized tasks or fallback
 - [Social](references/social.md) — XiaoHongShu, Twitter, Bilibili, V2EX, Reddit, Facebook, Instagram (multi-backend/login-backed groups)
 - [Career](references/career.md) — LinkedIn
 - [Dev](references/dev.md) — GitHub CLI

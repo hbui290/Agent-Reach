@@ -93,9 +93,9 @@ AI Agent 已经能帮你写代码、改文档、管项目——但你让它去�
 
 | | |
 |---|---|
-| 💰 **完全免费** | 所有工具开源、所有 API 免费。唯一可能花钱的是服务器代理（$1/月），本地电脑不需要 |
+| 💰 **免费开源** | Agent Reach 本身免费开源；第三方服务的额度与费用按服务商方案计算（例如 Tavily 可能产生用量费用） |
 | 🔒 **隐私安全** | Cookie 只存在你本地，不上传不外传。代码完全开源，随时可审查 |
-| 🔄 **持续换代** | 每个平台都是「首选 + 备选」多后端路由。某个接入方式失效了，我们换下一个，你无感（2026-06 实例：yt-dlp 被 B站风控封死 → 已切换 bili-cli，用户零操作） |
+| 🔄 **持续换代** | 多后端渠道会按可用性切换接入方式（如 B站 yt-dlp → bili-cli）；网页搜索则由 Agent 按任务选择 Tavily/Exa，Doctor 不会自动分发搜索 |
 | 🤖 **兼容所有 Agent** | Claude Code、OpenClaw、Cursor、Windsurf……任何能跑命令行的 Agent 都能用 |
 | 🩺 **自带诊断** | `agent-reach doctor` 一条命令告诉你哪个通、哪个不通、怎么修 |
 
@@ -108,7 +108,7 @@ AI Agent 已经能帮你写代码、改文档、管项目——但你让它去�
 | 🌐 **网页** | 阅读任意网页 | — | 无需配置 |
 | 📺 **YouTube** | 字幕提取 + 视频搜索 | — | 无需配置 |
 | 📡 **RSS** | 阅读任意 RSS/Atom 源 | — | 无需配置 |
-| 🔍 **全网搜索** | — | Tavily 研究搜索；Exa 语义搜索备选 | Tavily Key 可选；无 Key 自动走 Exa |
+| 🔍 **全网搜索** | Tavily Key / Exa MCP | Tavily 通用搜索；Exa 专项或备选 | 无 Tavily Key 时尝试已配置的 Exa MCP；其认证、额度和费用取决于 endpoint |
 | 📦 **GitHub** | 读公开仓库 + 搜索 | 私有仓库、提 Issue/PR、Fork | 告诉 Agent「帮我登录 GitHub」 |
 | 🐦 **Twitter/X** | 读单条推文 | 搜索推文、浏览时间线、读长文 | 告诉 Agent「帮我配 Twitter」 |
 | 📺 **B站** | 搜索 + 视频详情（bili-cli，无需登录） | 字幕（OpenCLI） | 告诉 Agent「帮我配 B站」 |
@@ -187,7 +187,7 @@ AI Agent 已经能帮你写代码、改文档、管项目——但你让它去�
 - "这个 GitHub 仓库是做什么的" → `gh repo view owner/repo`
 - "这个 YouTube 视频讲了什么" → `yt-dlp` 提取字幕
 - "B站搜一下 AI 教程" → `bili search`（无需登录）
-- "全网搜一下 LLM 框架对比" → Tavily Search → Extract；无 Key 时回退 Exa
+- "全网搜一下 LLM 框架对比" → Tavily Search → Extract；无 Key 时 Agent 尝试已配置的 Exa MCP
 - "订阅这个 RSS" → `feedparser` 解析
 
 **不需要记命令。** Agent 读了 SKILL.md 之后自己知道该调什么。需要登录的平台（小红书、Twitter、Reddit、Facebook、Instagram），告诉 Agent「帮我配 XXX」即可解锁。
@@ -225,6 +225,8 @@ channels/
 
 每个渠道文件按序**真实探测**各候选后端（不只是看命令存不存在），第一个完整可用的当选；坏掉的会给出修复处方。实际的读取和搜索由 Agent 直接调用上游工具完成。
 
+网页搜索是例外：Agent 按任务选择 Tavily（通用搜索）或 Exa（语义/论文/实体专项）；Doctor 只检查 Tavily 用量接口和 Exa 本地 MCP 配置，不会分发搜索命令，也不会实时验证 Exa endpoint。
+
 ### 当前选型
 
 | 场景 | 首选 | 备选 | 为什么这么选 |
@@ -236,13 +238,13 @@ channels/
 | Instagram | [OpenCLI](https://github.com/jackwener/opencli)（桌面） | 官方 Graph API（Business/Creator + 审批） | instaloader 类路径不稳定；OpenCLI 复用真实浏览器会话 |
 | YouTube 字幕 + 搜索 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | — | 154K Star，YouTube 仍是最佳（注意：不再用于 B站） |
 | B站 | [bili-cli](https://github.com/public-clis/bilibili-cli) | OpenCLI ▸ 搜索 API | yt-dlp 被 B站风控 412 封死（2026-06 实测），bili-cli 无登录可搜可读 |
-| 搜全网 | Tavily REST API | [Exa](https://exa.ai) via [mcporter](https://github.com/nicobailon/mcporter) | Tavily 适合研究和正文抽取；无 Key 或不可用时回退 Exa |
+| 搜全网 | Tavily REST API | [Exa](https://exa.ai) via [mcporter](https://github.com/nicobailon/mcporter) | Tavily 用于通用搜索；Exa 用于语义等专项任务或备选。MCP 认证与额度取决于 endpoint |
 | GitHub | [gh CLI](https://cli.github.com) | — | 官方工具，认证后完整 API 能力 |
 | 读 RSS | [feedparser](https://github.com/kurtmckee/feedparser) | — | Python 生态标准选择 |
 | 小红书 | [OpenCLI](https://github.com/jackwener/opencli)（桌面） | [xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp)（服务器）▸ xhs-cli | OpenCLI 只用用户已有会话；其余后端用 Cookie-Editor 手工导出 |
 | LinkedIn | [mcp-server-linkedin](https://github.com/stickerdaniel/linkedin-mcp-server) | Jina Reader | MCP 服务，浏览器自动化 |
 
-> 📌 这些都是「当前选型」，基于真机实测定期复核。某条路失效了我们换下一条——`agent-reach doctor` 永远告诉你现在走的是哪条。
+> 📌 这些都是「当前选型」，基于真机实测定期复核。对会自动探测并切换的渠道，Doctor 显示已验证的后端；网页搜索的任务路由例外见上文。
 
 ---
 

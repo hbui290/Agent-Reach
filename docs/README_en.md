@@ -90,9 +90,9 @@ Update Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/ma
 
 | | |
 |---|---|
-| 💰 **Completely free** | All tools are open source, all APIs are free. The only possible cost is a server proxy ($1/month) — local computers don't need one |
+| 💰 **Free & open source** | Agent Reach itself is free; third-party provider limits and usage fees depend on their plans (Tavily usage may be billed) |
 | 🔒 **Privacy safe** | Cookies stay local. Never uploaded. Fully open source — audit anytime |
-| 🔄 **Kept up to date** | Every platform routes through a primary + fallback backend list. When an access path dies, we switch to the next — you won't notice (June 2026: Bilibili 412-blocked yt-dlp → switched to bili-cli, zero action on your side) |
+| 🔄 **Kept up to date** | Multi-backend channels can switch to another available path (e.g. Bilibili yt-dlp → bili-cli); web search is task-routed by the Agent between Tavily and Exa, not automatically dispatched by Doctor |
 | 🤖 **Works with any Agent** | Claude Code, OpenClaw, Cursor, Windsurf… any Agent that can run commands |
 | 🩺 **Built-in diagnostics** | `agent-reach doctor` — one command shows what works, what doesn't, and how to fix it |
 
@@ -111,7 +111,7 @@ Update Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/ma
 | 💻 **V2EX** | Hot topics · Node topics · Topic detail + replies · User profile | Zero config | Public JSON API, no auth required. Great for tech community content |
 | 📈 **Xueqiu (雪球)** | Stock quotes · Search · Hot posts · Hot stocks | Browser cookie | Tell your Agent "help me set up Xueqiu" |
 | 🎙️ **Xiaoyuzhou Podcast** | Transcription | Free API key | Podcast audio → full text transcript via Groq Whisper (free) |
-| 🔍 **Web Search** | Search | Auto-configured | Auto-configured during install, free, no API key ([Exa](https://exa.ai) via [mcporter](https://github.com/nicepkg/mcporter)) |
+| 🔍 **Web Search** | Search | Tavily API key / Exa MCP | Tavily for general search; Exa for specialized tasks or fallback. MCP authentication and limits depend on the endpoint |
 | 📦 **GitHub** | Read · Search | Zero config | [gh CLI](https://cli.github.com) powered. Public repos work immediately. `gh auth login` unlocks Fork, Issue, PR |
 | 📺 **YouTube** | Read · **Search** | Zero config | Subtitles + search across 1800+ video sites ([yt-dlp](https://github.com/yt-dlp/yt-dlp) ⭐148K) |
 | 📺 **Bilibili** | Read · **Search** | Zero config | Search + video detail via [bili-cli](https://github.com/public-clis/bilibili-cli) (no login needed); subtitles via [OpenCLI](https://github.com/jackwener/opencli). yt-dlp is 412-blocked by Bilibili and no longer used here |
@@ -236,8 +236,8 @@ $ agent-reach doctor
   ✅ RSS/Atom feeds — feedparser
   ✅ Web pages (any URL) — Jina Reader API
 
-🔍 Search (free Exa key to unlock):
-  ⬜ Web semantic search — sign up at exa.ai for free key
+🔍 Search:
+  ⬜ Tavily — configure an API key for general search; Exa MCP is used for specialized tasks or as a fallback, with endpoint-specific authentication and limits
 
 🔧 Configurable:
   ⚠️  Twitter/X — doctor checks only that explicit credentials exist; direct CLI still needs its environment variables
@@ -275,11 +275,13 @@ channels/
 ├── xiaohongshu.py  → OpenCLI ▸ xiaohongshu-mcp ▸ xhs-cli
 ├── linkedin.py     → linkedin-mcp ▸ Jina Reader
 ├── rss.py          → feedparser
-├── exa_search.py   → Exa via mcporter
+├── exa_search.py   → Tavily REST ▸ Exa via mcporter
 └── __init__.py     → Channel registry (for doctor checks)
 ```
 
 Each channel file **actually probes** its candidate backends in order (not just checking that a command exists) — the first fully working one becomes the active backend, and broken ones come with a fix prescription. The actual reading and searching is done by the Agent calling the upstream tools directly.
+
+Web search is the exception: the Agent chooses Tavily for general queries and Exa for semantic/academic/entity tasks. Doctor only checks Tavily's usage endpoint and the local Exa MCP configuration; it does not dispatch searches or live-verify the Exa endpoint.
 
 ### Current Tool Choices
 
@@ -292,14 +294,14 @@ Each channel file **actually probes** its candidate backends in order (not just 
 | Instagram | [OpenCLI](https://github.com/jackwener/opencli) (desktop) | Official Graph API (Business/Creator + review) | Instaloader-style paths are unstable; OpenCLI reuses the real browser session |
 | YouTube subtitles + search | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | — | 154K stars, still the best for YouTube (no longer used for Bilibili) |
 | Bilibili | [bili-cli](https://github.com/public-clis/bilibili-cli) | OpenCLI ▸ search API | yt-dlp is 412-blocked by Bilibili (verified June 2026); bili-cli searches and reads without login |
-| Search the web | [Exa](https://exa.ai) via [mcporter](https://github.com/nicobailon/mcporter) | — | AI semantic search, MCP integration, no API key |
+| Search the web | Tavily REST API | [Exa](https://exa.ai) via [mcporter](https://github.com/nicobailon/mcporter) | Tavily for general search; Exa for specialized tasks or fallback. Endpoint authentication and usage terms vary |
 | GitHub | [gh CLI](https://cli.github.com) | — | Official tool, full API after auth |
 | Read RSS | [feedparser](https://github.com/kurtmckee/feedparser) | — | Python ecosystem standard |
 | XiaoHongShu | [OpenCLI](https://github.com/jackwener/opencli) (desktop) | [xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp) (server) ▸ xhs-cli | OpenCLI uses only an existing user-controlled session; other backends use a manual Cookie-Editor export |
 | LinkedIn | [mcp-server-linkedin](https://github.com/stickerdaniel/linkedin-mcp-server) | Jina Reader | MCP server, browser automation |
 | Xiaoyuzhou Podcast | `transcribe.sh` | — | `bash ~/.agent-reach/tools/xiaoyuzhou/transcribe.sh <URL>` |
 
-> 📌 These are the *current* choices, re-verified regularly on real machines. When a path dies we switch to the next — `agent-reach doctor` always tells you which one is active.
+> 📌 These are the *current* choices, re-verified regularly on real machines. For channels that probe and switch automatically, Doctor reports the verified backend; web search is task-routed as described above.
 
 ---
 

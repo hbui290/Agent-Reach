@@ -1,14 +1,18 @@
 # Tavily Search 配置指南
 
-Tavily 是 Agent Reach 的首选网页搜索后端；Exa MCP 继续作为备选。
+Tavily 用于通用网页搜索；论文、语义、公司/人物等专项任务优先 Exa MCP，
+Tavily 不可用时也可由 Agent 改用 Exa。
 Tavily 的 API key 只保存在 `~/.agent-reach/config.yaml`，不会写入仓库或输出到日志。
 
 ## 配置
 
 ```bash
-agent-reach configure tavily-key --stdin
+agent-reach configure tavily-key
 agent-reach doctor --json
 ```
+
+交互式配置会使用隐藏输入。`--stdin` 仅用于从管道传入值；不要在终端中直接键入，
+因为标准输入内容可能会显示在屏幕上。
 
 当 `exa_search.active_backend` 为 `Tavily via REST` 时，Tavily 已通过 `/usage`
 验证。Doctor 不执行搜索，因此不会消耗搜索 credit。
@@ -29,4 +33,6 @@ Research。Tavily 暂时不可用或没有 key 时使用 Exa：
 mcporter call exa.web_search_exa query=query numResults=5 "objective=Find relevant sources for the requested query."
 ```
 
-可用 `EXA_SEARCH_BACKEND=exa` 临时优先 Exa；默认顺序仍是 Tavily → Exa。
+`EXA_SEARCH_BACKEND=exa` 只会让 Doctor 优先检查 Exa，不会自动分发搜索命令；
+默认检查顺序仍是 Tavily → Exa。实际搜索后端按任务选择，见
+`agent_reach/skill/references/search.md`。
