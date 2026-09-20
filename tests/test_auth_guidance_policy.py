@@ -73,11 +73,9 @@ def test_xiaohongshu_opencli_and_export_boundaries_are_truthful():
 
 def test_twitter_operational_docs_explain_the_environment_boundary():
     """Saved cookies help doctor only; direct twitter commands need env vars."""
+    # Landing pages may stay concise; operational documents must preserve the
+    # environment boundary wherever users actually configure or invoke Twitter.
     operational_docs = (
-        ROOT / "README.md",
-        ROOT / "docs" / "README_en.md",
-        ROOT / "docs" / "README_ja.md",
-        ROOT / "docs" / "README_ko.md",
         ROOT / "docs" / "cookie-export.md",
         ROOT / "docs" / "install.md",
         ROOT / "docs" / "troubleshooting.md",
@@ -124,17 +122,22 @@ def test_twitter_operational_docs_explain_the_environment_boundary():
 
 def test_localized_readmes_keep_current_bilibili_and_xhs_routes():
     """Translations must not revive retired yt-dlp/Bilibili or XHS defaults."""
-    readmes = (
+    overview_docs = (
         ROOT / "README.md",
         ROOT / "docs" / "README_en.md",
         ROOT / "docs" / "README_ja.md",
         ROOT / "docs" / "README_ko.md",
     )
 
-    for path in readmes:
+    for path in overview_docs:
         text = path.read_text(encoding="utf-8")
         assert "bilibili.py     → yt-dlp" not in text, path.relative_to(ROOT)
         assert "YouTube + Bilibili" not in text, path.relative_to(ROOT)
+
+    # Japanese and Korean remain full platform references. The root English
+    # README is intentionally concise and docs/README_en.md redirects to it.
+    for path in (ROOT / "docs" / "README_ja.md", ROOT / "docs" / "README_ko.md"):
+        text = path.read_text(encoding="utf-8")
         assert "bili-cli" in text, path.relative_to(ROOT)
         assert (
             "xiaohongshu.py  → OpenCLI ▸ xiaohongshu-mcp ▸ xhs-cli"

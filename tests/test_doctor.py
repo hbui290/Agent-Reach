@@ -44,7 +44,14 @@ class TestDoctor:
                 _StubChannel("web", "网页", 0, "ok", "可抓取网页", ["requests"],
                              active_backend="requests"),
                 _StubChannel("github", "GitHub", 0, "warn", "gh 未安装", ["gh"]),
-                _StubChannel("exa_search", "全网语义搜索", 1, "off", "mcporter 未配置", ["Exa"]),
+                _StubChannel(
+                    "exa_search",
+                    "全网搜索（Tavily 默认；Exa 专项/备选）",
+                    0,
+                    "off",
+                    "Tavily 与 Exa 均未配置",
+                    ["Tavily via REST", "Exa via mcporter"],
+                ),
             ],
         )
 
@@ -69,10 +76,10 @@ class TestDoctor:
             },
             "exa_search": {
                 "status": "off",
-                "name": "全网语义搜索",
-                "message": "mcporter 未配置",
-                "tier": 1,
-                "backends": ["Exa"],
+                "name": "全网搜索（Tavily 默认；Exa 专项/备选）",
+                "message": "Tavily 与 Exa 均未配置",
+                "tier": 0,
+                "backends": ["Tavily via REST", "Exa via mcporter"],
                 "active_backend": None,
             },
         }
@@ -87,10 +94,10 @@ class TestDoctor:
                     "tier": 0,
                     "backends": ["requests"],
                 },
-                "exa_search": {
+                "optional_search": {
                     "status": "off",
-                    "name": "全网语义搜索",
-                    "message": "mcporter 未配置",
+                    "name": "可选搜索",
+                    "message": "未配置",
                     "tier": 1,
                     "backends": ["Exa"],
                 },

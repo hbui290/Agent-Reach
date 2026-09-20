@@ -105,6 +105,34 @@ def test_configure_rejects_sensitive_positional_values(monkeypatch, capsys):
     assert "--stdin" in output.err
 
 
+def test_configure_tavily_key_explains_runtime_environment_boundary(
+    monkeypatch, capsys
+):
+    import getpass
+
+    import agent_reach.config as config_module
+
+    class TtyInput(io.StringIO):
+        def isatty(self):
+            return True
+
+    secret = "tvly-hidden-secret"
+    config = _MemoryConfig()
+    monkeypatch.setattr(config_module, "Config", lambda: config)
+    monkeypatch.setattr(cli, "_configure_logging", lambda _verbose=False: None)
+    monkeypatch.setattr(sys, "stdin", TtyInput())
+    monkeypatch.setattr(getpass, "getpass", lambda _prompt: secret)
+    monkeypatch.setattr(sys, "argv", ["agent-reach", "configure", "tavily-key"])
+
+    cli.main()
+
+    assert config.data["tavily_api_key"] == secret
+    output = capsys.readouterr()
+    assert secret not in output.out
+    assert secret not in output.err
+    assert "TAVILY_API_KEY" in output.out
+
+
 def test_setup_uses_hidden_prompts_for_secrets(monkeypatch, capsys):
     import getpass
     import shutil

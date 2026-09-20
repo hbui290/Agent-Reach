@@ -1600,7 +1600,8 @@ def _cmd_configure(args):
     elif args.key == "tavily-key":
         config.set("tavily_api_key", value)
         print("✅ Tavily API key configured!")
-        print("   Run `agent-reach doctor` to verify Tavily, then use it as the primary search backend.")
+        print("   Saved for `agent-reach doctor`; direct Tavily calls still require")
+        print("   TAVILY_API_KEY in the caller's environment.")
 
 
 def _cmd_transcribe(args):

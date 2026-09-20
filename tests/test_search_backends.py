@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 """Tests for the Tavily-first web search backend routing."""
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import agent_reach.channels.exa_search as search_module
 from agent_reach.channels.exa_search import ExaSearchChannel
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class _Response:
@@ -42,7 +45,7 @@ def test_tavily_is_primary_and_usage_check_does_not_search(monkeypatch):
     assert "12/1000" in message
 
 
-def test_invalid_tavily_key_falls_back_to_configured_exa(monkeypatch):
+def test_invalid_tavily_key_reports_configured_but_unverified_exa(monkeypatch):
     monkeypatch.setattr(search_module.requests, "get", lambda *_a, **_k: _Response(401))
     monkeypatch.setattr(search_module.shutil, "which", lambda name: "/usr/bin/mcporter")
     monkeypatch.setattr(
@@ -85,6 +88,14 @@ def test_whitespace_backend_override_does_not_suppress_task_routing():
     )
 
 
+def test_unknown_override_does_not_hide_a_valid_lower_priority_override():
+    channel = ExaSearchChannel()
+
+    config = {"search_backend": "retired-provider", "exa_search_backend": "exa"}
+
+    assert channel.backend_for_task("general", config) == channel.EXA_BACKEND
+
+
 def test_tavily_usage_rejects_non_object_response(monkeypatch):
     monkeypatch.setattr(
         search_module.requests,
@@ -113,6 +124,25 @@ def test_tavily_usage_requires_key_object(monkeypatch):
 
         assert status == "warn"
         assert "格式" in message
+
+
+def test_tavily_ignores_non_numeric_usage_counters(monkeypatch):
+    payload = {
+        "key": {"usage": None, "limit": "1000"},
+        "account": {
+            "plan_usage": True,
+            "plan_limit": 100,
+            "paygo_usage": [],
+            "paygo_limit": {},
+        },
+    }
+    monkeypatch.setattr(search_module.requests, "get", lambda *_a, **_k: _Response(200, payload))
+    channel = ExaSearchChannel()
+
+    status, message = channel._check_tavily({"tavily_api_key": "tvly-test"})
+
+    assert status == "ok"
+    assert "credits" not in message
 
 
 def test_tavily_warns_when_plan_and_paygo_credits_are_exhausted(monkeypatch):
@@ -204,7 +234,7 @@ def test_explicit_backend_override_wins_over_task_route():
     assert channel.backend_for_task("paper", {"search_backend": "tavily"}) == channel.TAVILY_BACKEND
 
 
-def test_task_route_is_used_by_backend_order_and_check(monkeypatch):
+def test_task_route_orders_health_checks_without_claiming_unverified_exa(monkeypatch):
     channel = ExaSearchChannel()
     assert channel.ordered_backends(task="paper") == [
         channel.EXA_BACKEND,
@@ -215,10 +245,25 @@ def test_task_route_is_used_by_backend_order_and_check(monkeypatch):
     monkeypatch.setattr(
         channel,
         "_check_exa",
-        lambda: calls.append(channel.EXA_BACKEND) or ("ok", "Exa configured"),
+        lambda: calls.append(channel.EXA_BACKEND) or ("warn", "Exa configured but unverified"),
+    )
+    monkeypatch.setattr(
+        channel,
+        "_check_tavily",
+        lambda _config: calls.append(channel.TAVILY_BACKEND) or ("ok", "Tavily verified"),
     )
     status, _ = channel.check(task="paper")
 
     assert status == "ok"
-    assert channel.active_backend == channel.EXA_BACKEND
-    assert calls == [channel.EXA_BACKEND]
+    assert channel.active_backend == channel.TAVILY_BACKEND
+    assert calls == [channel.EXA_BACKEND, channel.TAVILY_BACKEND]
+
+
+def test_root_readme_summarizes_the_fork_search_changes():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert "What This Fork Changes" in readme
+    assert "Panniantong/Agent-Reach" in readme
+    assert "Tavily is the default" in readme
+    assert "Exa remains available" in readme
+    assert "without spending a search credit" in readme

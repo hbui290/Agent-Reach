@@ -4,6 +4,7 @@
 import os
 import re
 import shutil
+from typing import TypeGuard
 
 import requests
 
@@ -67,27 +68,23 @@ class ExaSearchChannel(Channel):
     def _configured_backend(self, config=None):
         if not config:
             return None
-        override = None
         for key in ("search_backend", "web_search_backend", f"{self.name}_backend"):
             candidate = config.get(key)
             if candidate is not None:
                 candidate = str(candidate).strip()
-            if candidate:
-                override = candidate
-                break
-        if not override:
-            return None
+            if not candidate:
+                continue
 
-        aliases = {
-            "tavily": self.TAVILY_BACKEND,
-            "exa": self.EXA_BACKEND,
-        }
-        target = aliases.get(override.casefold(), override)
-        for backend in self.backends:
-            if backend.casefold() == target.casefold() or backend.casefold().startswith(
-                target.casefold()
-            ):
-                return backend
+            aliases = {
+                "tavily": self.TAVILY_BACKEND,
+                "exa": self.EXA_BACKEND,
+            }
+            target = aliases.get(candidate.casefold(), candidate)
+            for backend in self.backends:
+                if backend.casefold() == target.casefold() or backend.casefold().startswith(
+                    target.casefold()
+                ):
+                    return backend
         return None
 
     def backend_for_task(self, task=None, config=None):
@@ -186,34 +183,33 @@ class ExaSearchChannel(Channel):
             used = usage.get("usage")
             limit = usage.get("limit")
             counters = []
+            key_exhausted = False
             if self._is_usage_number(used) and self._is_usage_number(limit):
                 counters.append(f"key {used}/{limit}")
+                key_exhausted = used >= limit
 
             plan_used = account.get("plan_usage")
             plan_limit = account.get("plan_limit")
             paygo_used = account.get("paygo_usage")
             paygo_limit = account.get("paygo_limit")
-            has_plan_counters = self._is_usage_number(plan_used) and self._is_usage_number(
-                plan_limit
-            )
-            has_paygo_counters = self._is_usage_number(paygo_used) and self._is_usage_number(
-                paygo_limit
-            )
-
-            if has_plan_counters:
+            has_plan_counters = False
+            plan_available = False
+            if self._is_usage_number(plan_used) and self._is_usage_number(plan_limit):
+                has_plan_counters = True
                 counters.append(f"plan {plan_used}/{plan_limit}")
-            if has_paygo_counters:
+                plan_available = plan_used < plan_limit
+
+            has_paygo_counters = False
+            paygo_available = False
+            if self._is_usage_number(paygo_used) and self._is_usage_number(paygo_limit):
+                has_paygo_counters = True
                 counters.append(f"PAYG {paygo_used}/{paygo_limit}")
+                paygo_available = paygo_used < paygo_limit
             suffix = f"（{'；'.join(counters)} credits）" if counters else ""
 
-            key_exhausted = (
-                self._is_usage_number(used) and self._is_usage_number(limit) and used >= limit
-            )
             if key_exhausted:
                 return "warn", f"Tavily API key 用量上限已用完；将继续尝试 Exa。{suffix}"
 
-            plan_available = has_plan_counters and plan_used < plan_limit
-            paygo_available = has_paygo_counters and paygo_used < paygo_limit
             has_account_counters = has_plan_counters or has_paygo_counters
             if has_account_counters and not (plan_available or paygo_available):
                 if has_plan_counters and has_paygo_counters:
@@ -232,7 +228,7 @@ class ExaSearchChannel(Channel):
         return "warn", f"Tavily API 检查失败（HTTP {response.status_code}）；将继续尝试 Exa。"
 
     @staticmethod
-    def _is_usage_number(value):
+    def _is_usage_number(value: object) -> TypeGuard[int | float]:
         return isinstance(value, (int, float)) and not isinstance(value, bool)
 
     def _check_exa(self):

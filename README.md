@@ -27,6 +27,29 @@
 
 ---
 
+## What This Fork Changes
+
+This fork stays close to [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) and adds a focused search upgrade:
+
+- Tavily is the default for general web search, news, extraction, crawling, and deep research.
+- Exa remains available for semantic, academic, company, people, RAG, and similar-page tasks, and as a fallback.
+- `agent-reach doctor` checks Tavily availability through the usage endpoint without spending a search credit and reports exhausted quotas safely.
+- Tavily keys can be saved safely for Doctor through hidden input or `--stdin`; direct upstream calls still require `TAVILY_API_KEY` in the caller environment.
+- Routing, malformed API responses, quota states, secret handling, and fallback behavior have regression coverage.
+
+All other platform behavior follows upstream. Detailed setup belongs in the linked guides rather than this landing page.
+
+To test the current fork branch directly:
+
+~~~bash
+pipx install --force https://github.com/hbui290/Agent-Reach/archive/refs/heads/feat/tavily-primary-search.zip
+agent-reach doctor
+~~~
+
+The generic install and update guides below continue to track upstream releases.
+
+---
+
 <details>
 <summary>Sponsors</summary>
 
@@ -96,7 +119,7 @@ Agent Reach is free and open source. Third-party quotas and fees—including Tav
 
 The agent selects a backend for each task and may try another configured backend if the preferred service is unavailable. <code>agent-reach doctor</code> checks the Tavily usage endpoint and local Exa MCP configuration; it does not run searches or verify a remote Exa endpoint.
 
-Details: [Search guide](agent_reach/skill/references/search.md) · [Tavily setup](agent_reach/guides/setup-tavily.md) · [Exa setup](agent_reach/guides/setup-exa.md)
+Details: [English agent guide](agent_reach/skill/SKILL_en.md) · [Search reference (Chinese)](agent_reach/skill/references/search.md) · [Tavily setup (Chinese)](agent_reach/guides/setup-tavily.md) · [Exa setup (Chinese)](agent_reach/guides/setup-exa.md)
 
 ## Security and Uninstall
 
@@ -108,7 +131,7 @@ Details: [Search guide](agent_reach/skill/references/search.md) · [Tavily setup
 ## Documentation
 
 - Installation and maintenance: [Install Guide](docs/install.md) · [Update Guide](docs/update.md) · [Troubleshooting](docs/troubleshooting.md)
-- Search: [Routing](agent_reach/skill/references/search.md) · [Tavily](agent_reach/guides/setup-tavily.md) · [Exa](agent_reach/guides/setup-exa.md)
+- Search: [English agent guide](agent_reach/skill/SKILL_en.md) · [Routing (Chinese)](agent_reach/skill/references/search.md) · [Tavily (Chinese)](agent_reach/guides/setup-tavily.md) · [Exa (Chinese)](agent_reach/guides/setup-exa.md)
 - Platforms and credentials: [Agent Skill](agent_reach/skill/SKILL.md) · [Social guide](agent_reach/skill/references/social.md) · [Cookie export](docs/cookie-export.md)
 
 ## Contact and Contributions

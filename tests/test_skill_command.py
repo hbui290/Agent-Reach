@@ -118,9 +118,10 @@ class TestSkillCommand(unittest.TestCase):
         career = (
             root / "agent_reach" / "skill" / "references" / "career.md"
         ).read_text(encoding="utf-8")
-        readme = (root / "README.md").read_text(encoding="utf-8")
 
-        for content in (install_doc, skill, readme):
+        # The landing README stays concise; reproducible setup details belong
+        # in the installation, skill, and career reference documents.
+        for content in (install_doc, skill, career):
             self.assertIn("帮我配 Boss直聘", content)
         self.assertIn("agent-reach install --env=local --system --channels=boss", install_doc)
         self.assertIn("--remote-debugging-address=127.0.0.1", install_doc)
