@@ -1,7 +1,10 @@
 """Security boundaries for the optional Agent Reach MCP server."""
 
 import asyncio
+import threading
 from types import SimpleNamespace
+
+import pytest
 
 import agent_reach.integrations.mcp_server as mcp_server
 
@@ -99,3 +102,84 @@ def test_mcp_status_exception_credentials_are_scrubbed(monkeypatch):
     assert "password" not in text
     assert "top-secret" not in text
     assert "https://***@example.test/data?token=***" in text
+
+
+def _status_server(monkeypatch, report):
+    monkeypatch.setattr(mcp_server, "Config", lambda **kwargs: object())
+    monkeypatch.setattr(
+        mcp_server, "AgentReach", lambda config: SimpleNamespace(doctor_report=report)
+    )
+    return mcp_server.create_server()
+
+
+def test_mcp_status_keeps_event_loop_responsive(monkeypatch):
+    _install_fake_mcp(monkeypatch)
+    started = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+
+    def report():
+        started.set()
+        try:
+            release.wait(2)
+            return "ok"
+        finally:
+            finished.set()
+
+    server = _status_server(monkeypatch, report)
+
+    async def run():
+        task = asyncio.create_task(server.call_tool_handler("get_status", {}))
+        try:
+            assert await asyncio.to_thread(started.wait, 2)
+            assert not finished.is_set(), "doctor blocked the event loop"
+            tools = await server.list_tools_handler()
+            assert [tool.name for tool in tools] == ["get_status"]
+            unknown = await server.call_tool_handler("unknown", {})
+            assert unknown[0].text == "Unknown tool: unknown"
+        finally:
+            release.set()
+            result = await task
+        assert result[0].text == "ok"
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("cancel_first", [False, True])
+def test_mcp_status_reports_stay_serial_after_cancellation(monkeypatch, cancel_first):
+    _install_fake_mcp(monkeypatch)
+    started = threading.Event()
+    release = threading.Event()
+    second_started = threading.Event()
+    calls = []
+
+    def report():
+        calls.append(len(calls) + 1)
+        if len(calls) == 1:
+            started.set()
+            release.wait(2)
+            return "first"
+        second_started.set()
+        return "second"
+
+    server = _status_server(monkeypatch, report)
+
+    async def run():
+        first = asyncio.create_task(server.call_tool_handler("get_status", {}))
+        second = None
+        try:
+            assert await asyncio.to_thread(started.wait, 2)
+            if cancel_first:
+                first.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await first
+            second = asyncio.create_task(server.call_tool_handler("get_status", {}))
+            assert not await asyncio.to_thread(second_started.wait, 0.1)
+        finally:
+            release.set()
+            await asyncio.gather(first, *([second] if second else []), return_exceptions=True)
+        assert second is not None
+        assert (await second)[0].text == "second"
+        assert calls == [1, 2]
+
+    asyncio.run(run())

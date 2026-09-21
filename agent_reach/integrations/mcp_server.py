@@ -11,6 +11,7 @@ agents should call upstream tools directly (twitter-cli, yt-dlp, mcporter, etc.)
 import asyncio
 import json
 import sys
+import threading
 
 from agent_reach.config import Config
 from agent_reach.core import AgentReach
@@ -24,6 +25,15 @@ try:
     HAS_MCP = True
 except ImportError:
     HAS_MCP = False
+
+
+_doctor_lock = threading.Lock()
+
+
+def _doctor_report(eyes: AgentReach) -> str:
+    """Serialize access to shared channel instances used by Doctor."""
+    with _doctor_lock:
+        return eyes.doctor_report()
 
 
 def create_server():
@@ -52,7 +62,7 @@ def create_server():
     async def call_tool(name: str, arguments: dict):
         try:
             if name == "get_status":
-                result = eyes.doctor_report()
+                result = await asyncio.to_thread(_doctor_report, eyes)
             else:
                 result = f"Unknown tool: {name}"
 
