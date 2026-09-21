@@ -17,14 +17,14 @@ curl -s "https://r.jina.ai/https://example.com/article"
 ## Web Reader (MCP)
 
 ```bash
-# 读取网页内容 (Markdown 格式)
-mcporter call web-reader.webReader url="https://example.com"
+# mcporter 不会剥离 key="value" 中的引号；不要把引号放在等号右侧。
+mcporter call web-reader.webReader url=https://example.com
 
 # 保留图片
-mcporter call web-reader.webReader url="https://example.com" retain_images=true
+mcporter call web-reader.webReader url=https://example.com retain_images=true
 
 # 纯文本格式
-mcporter call web-reader.webReader url="https://example.com" return_format="text"
+mcporter call web-reader.webReader url=https://example.com return_format=text
 ```
 
 **适用场景**: 需要更精确控制输出格式时使用。
