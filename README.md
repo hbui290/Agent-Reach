@@ -29,20 +29,21 @@
 
 ## What This Fork Changes
 
-This fork stays close to [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) and adds a focused search upgrade:
+This fork stays close to [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) and adds focused search and reliability upgrades:
 
 - Tavily is the default for general web search, news, extraction, crawling, and deep research.
 - Exa remains available for semantic, academic, company, people, RAG, and similar-page tasks, and as a fallback.
 - `agent-reach doctor` checks Tavily availability through the usage endpoint without spending a search credit and reports exhausted quotas safely.
 - Tavily keys can be saved safely for Doctor through hidden input or `--stdin`; direct upstream calls still require `TAVILY_API_KEY` in the caller environment.
 - Routing, malformed API responses, quota states, secret handling, and fallback behavior have regression coverage.
+- Selected upstream hardening is included for explicit install targets, YouTube browser cookies, Jina health checks, responsive MCP status calls, restricted filesystems, and safe `mcporter` examples.
 
 All other platform behavior follows upstream. Detailed setup belongs in the linked guides rather than this landing page.
 
 To test the current fork branch directly:
 
 ~~~bash
-pipx install --force https://github.com/hbui290/Agent-Reach/archive/refs/heads/feat/tavily-primary-search.zip
+pipx install --force https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip
 agent-reach doctor
 ~~~
 
