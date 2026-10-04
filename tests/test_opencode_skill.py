@@ -103,3 +103,60 @@ def test_full_uninstall_includes_opencode_directory(
     output = capsys.readouterr().out
     assert f"Would remove OpenCode skill: {installed}" in output
     assert installed.is_dir()
+
+
+def _home_patches(tmp_path: Path, extra_env: dict[str, str] | None = None):
+    return (
+        patch(
+            "agent_reach.cli.os.path.expanduser",
+            side_effect=lambda value: os.fspath(tmp_path / value.removeprefix("~/"))
+            if value.startswith("~/")
+            else value,
+        ),
+        patch("agent_reach.utils.paths.home_dir", return_value=tmp_path),
+        patch("shutil.which", return_value=None),
+        patch.dict(os.environ, extra_env or {}, clear=True),
+    )
+
+
+def test_full_uninstall_removes_openclaw_home_and_dangling_symlink(tmp_path: Path):
+    openclaw_home = tmp_path / "oc"
+    oc_skill = openclaw_home / ".openclaw" / "skills" / "agent-reach"
+    oc_skill.mkdir(parents=True)
+    dangling = tmp_path / ".claude" / "skills" / "agent-reach"
+    dangling.parent.mkdir(parents=True)
+    try:
+        dangling.symlink_to(tmp_path / "missing-target")
+    except OSError:
+        pytest.skip("symlinks unavailable")
+
+    p1, p2, p3, p4 = _home_patches(tmp_path, {"OPENCLAW_HOME": os.fspath(openclaw_home)})
+    with p1, p2, p3, p4:
+        _cmd_uninstall(SimpleNamespace(dry_run=False, keep_config=True))
+
+    assert not oc_skill.exists()
+    assert not os.path.lexists(dangling)
+
+
+def test_full_uninstall_exits_nonzero_when_removal_fails(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    (tmp_path / ".agent-reach").mkdir()
+
+    p1, p2, p3, p4 = _home_patches(tmp_path)
+    with p1, p2, p3, p4, patch(
+        "shutil.rmtree", side_effect=PermissionError("denied")
+    ), pytest.raises(SystemExit) as exc:
+        _cmd_uninstall(SimpleNamespace(dry_run=False, keep_config=False))
+
+    assert exc.value.code == 1
+    assert "Cleanup incomplete" in capsys.readouterr().out
+
+
+def test_skill_uninstall_reports_failure(tmp_path: Path):
+    installed = tmp_path / ".agents" / "skills" / "agent-reach"
+    installed.mkdir(parents=True)
+
+    p1, p2, p3, p4 = _home_patches(tmp_path)
+    with p1, p2, p3, p4, patch("shutil.rmtree", side_effect=PermissionError("denied")):
+        assert _uninstall_skill() is False
