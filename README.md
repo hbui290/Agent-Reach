@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> · <a href="README_zh.md">简体中文</a> · <a href="docs/README_ja.md">日本語</a> · <a href="docs/README_ko.md">한국어</a> · <a href="#platform-capabilities">Platforms</a> · <a href="#search-routing">Search Routing</a>
+  <a href="#quick-start">Quick Start</a> · <a href="docs/README_ja.md">日本語</a> · <a href="docs/README_ko.md">한국어</a> · <a href="#platform-capabilities">Platforms</a> · <a href="#search-routing">Search Routing</a>
 </p>
 
 > **Security notice:** Agent Reach has no official token, coin, investment product, fee-claim program, wallet connection, or Solana/Pump.fun project. Any crypto project using the Agent Reach name, repository URL, or author identity is unaffiliated. Do not connect a wallet or claim fees based on related messages or links.
