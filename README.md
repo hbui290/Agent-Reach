@@ -1,175 +1,189 @@
 <h1 align="center">👁️ Agent Reach</h1>
 
 <p align="center">
-  <strong>Install, diagnose, and maintain internet access for your AI agent</strong>
+  <strong>Give your AI agent safe, diagnosable access to the web and 13+ platforms.</strong>
 </p>
 
 <p align="center">
-  Works with Claude Code, OpenClaw, Cursor, and other agents that can run commands. Content is read through the upstream tools.
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10+-green.svg?logo=python&logoColor=white" alt="Python 3.10+"></a>
+  <a href="https://github.com/hbui290/Agent-Reach/actions/workflows/pytest.yml"><img src="https://github.com/hbui290/Agent-Reach/actions/workflows/pytest.yml/badge.svg" alt="CI"></a>
 </p>
 
 <p align="center">
-  <a href="https://trendshift.io/repositories/24387"><img src="https://trendshift.io/api/badge/repositories/24387" alt="Trendshift GitHub Trending #1 Repository of the Day"></a>
-  <a href="https://star-history.com/#Panniantong/Agent-Reach&Date"><img src="https://api.star-history.com/badge?repo=Panniantong/Agent-Reach" alt="Star History Rank" width="196" height="55"></a>
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#what-this-fork-changes">Fork Changes</a> ·
+  <a href="#search-routing">Search Routing</a> ·
+  <a href="#platforms">Platforms</a> ·
+  <a href="#cli-reference">CLI</a> ·
+  <a href="#security">Security</a>
 </p>
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10+-green.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"></a>
-  <a href="https://github.com/Panniantong/agent-reach/stargazers"><img src="https://img.shields.io/github/stars/Panniantong/agent-reach?style=for-the-badge" alt="GitHub Stars"></a>
-</p>
+This is a maintained fork of [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) with Tavily-first search, stricter Doctor checks, and reliability fixes.
 
-<p align="center">
-  <a href="#quick-start">Quick Start</a> · <a href="#platform-capabilities">Platforms</a> · <a href="#search-routing">Search Routing</a>
-</p>
-
-> **Security notice:** Agent Reach has no official token, coin, investment product, fee-claim program, wallet connection, or Solana/Pump.fun project. Any crypto project using the Agent Reach name, repository URL, or author identity is unaffiliated. Do not connect a wallet or claim fees based on related messages or links.
+> **Scam warning:** Agent Reach has no token, coin, wallet connection, fee-claim program, or Solana/Pump.fun project. Anything crypto-related using this name is unaffiliated.
 
 ---
 
-## What This Fork Changes
+## What It Is
 
-This fork stays close to [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) and adds focused search and reliability upgrades:
+Agent Reach is an **installer, doctor, and config tool** for AI agents such as Claude Code, Codex, Cursor, and OpenClaw. It:
 
-- Tavily is the default for general web search, news, extraction, crawling, and deep research.
-- Exa remains available for semantic, academic, company, people, RAG, and similar-page tasks, and as a fallback.
-- `agent-reach doctor` checks Tavily availability through the usage endpoint without spending a search credit and reports exhausted quotas safely.
-- Tavily keys can be saved safely for Doctor through hidden input or `--stdin`; the skill's direct Tavily API calls load the saved key from `config.yaml` and fall back to `TAVILY_API_KEY`.
-- Routing, malformed API responses, quota states, secret handling, and fallback behavior have regression coverage.
-- Selected upstream hardening is included for explicit install targets, YouTube browser cookies, Jina health checks, responsive MCP status calls, restricted filesystems, and safe `mcporter` examples.
+1. Installs and registers the upstream CLI, MCP, and Skill tools an agent needs to read the internet.
+2. Checks which channels actually work (`agent-reach doctor`) and explains how to fix the ones that don't.
+3. Stores credentials locally and ships an agent skill that tells the agent which tool to use for each task.
 
-The Agent Reach skill also gives agents task-based instructions for using these tools:
-
-- Use Tavily for general web/news search and Exa for academic, entity, semantic, and RAG discovery; read a supplied URL directly when appropriate.
-- For broad research, select relevant source families (such as primary sources, independent reporting, and community discussion), compare them when available, and report what was and was not covered. Do not call every platform by default.
-- Check that a connected tool, CLI, and required account access are actually available. A skill describes procedures; it does not itself connect ChatGPT web to a local CLI or browser.
-- Recover from failures with bounded retries and suitable authorized alternatives. For X search, the documented path is retry → check for a `twitter-cli` update → OpenCLI → relevant account feeds/posts; a feed is reported as a limited source, not full X search.
-- Before sending private URLs or private audio to a remote service, identify the recipient and data transfer and obtain applicable authorization. Report whether video text came from platform captions or ASR.
-
-These skill bullets are agent instructions only; the CLI runtime changes are the search, Doctor, and hardening items listed above. No dependencies or platform backends are added. Detailed setup belongs in the linked guides rather than this landing page.
-
-To test the current fork branch directly:
-
-~~~bash
-pipx install --force https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip
-agent-reach doctor
-~~~
-
-The generic install and update guides below continue to track upstream releases.
-
----
-
-<details>
-<summary>Sponsors</summary>
-
-| | |
-|---|---|
-| <img src="docs/assets/sponsors/browseract.png" width="100" alt="BrowserAct"> [BrowserAct](https://www.browseract.ai/Agent) | Collect website data in a real browser without writing scrapers; new users receive 1,000 credits. |
-| <img src="docs/assets/sponsors/tencent-cloud.svg" width="100" alt="Tencent Cloud"> [Tencent Cloud Lighthouse](https://www.tencentcloud.com/act/pro/intl-openclaw?referral_code=G76Y819A&lang=en&pg=) | Deploy OpenClaw and connect it to Agent Reach. |
-| <img src="docs/assets/sponsors/coreclaw.png" width="100" alt="CoreClaw"> [CoreClaw](https://www.coreclaw.com/?utm_source=github&utm_medium=referral&utm_campaign=Reach&utm_term=Reach&utm_id=Reach) | 100+ data-collection tools with JSON/CSV export; try it with $3 in free credits. |
-| <img src="docs/assets/sponsors/astraflow.png" width="100" alt="AstraFlow"> [AstraFlow](https://www.ucloud.cn/site/active/astraflow?ytag=geo_waituo_Agent) | Access 200+ models through one API. |
-
-</details>
-
-## What Is Agent Reach?
-
-Agent Reach helps AI agents install and diagnose internet integrations. It prepares CLI, MCP, and Skill tools, checks which backends are available, and provides repair guidance. It is not a search or content proxy: the agent calls the upstream tools directly.
+It is **not** a proxy or wrapper. After setup, the agent calls the upstream tools (Tavily, Exa, yt-dlp, gh, OpenCLI, …) directly.
 
 ## Quick Start
 
-Send this to your AI agent:
+Paste this into your AI agent:
 
 ~~~text
-Install the hbui290 fork of Agent Reach. For a new pipx install, use `pipx install https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip`; first check the source of any existing `agent-reach` installation before replacing it. Then run `agent-reach install --env=auto` for a read-only environment check. Use `--system` only after explicitly approving the proposed system changes.
+Install the hbui290 fork of Agent Reach with
+`pipx install https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip`.
+If `agent-reach` is already installed, check where it came from before replacing it.
+Then run `agent-reach install --env=auto` (read-only check) and `agent-reach doctor`.
+Use `--system` only after I approve the proposed system changes.
 ~~~
 
-After installation, run <code>agent-reach doctor</code> to check channel status. The [Update Guide](docs/update.md) updates from this fork with the matching install method. `agent-reach check-update` compares against upstream releases, which reach this fork only after they are merged.
+Or do it yourself:
 
-> **Safe by default:** <code>agent-reach install</code> only checks the environment. Use <code>agent-reach install --system</code> only after explicitly approving system changes. Preview changes with <code>--dry-run</code>.
+~~~bash
+pipx install https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip
+agent-reach install --env=auto     # check only, changes nothing
+agent-reach configure tavily-key   # hidden prompt; recommended for web search
+agent-reach doctor                 # show what works and what to fix
+~~~
+
+To update, rerun the install command with `pipx install --force …`. See the [Update Guide](docs/update.md).
 
 <details>
 <summary>OpenClaw users</summary>
 
-Agent Reach needs shell-command access. If OpenClaw uses the default <code>messaging</code> tool profile, enable exec first:
+Agent Reach needs shell access. If OpenClaw uses the default `messaging` profile, enable exec first:
 
 ~~~bash
 openclaw config set tools.profile "coding"
 openclaw gateway restart
 ~~~
 
-Then start a new conversation. Other agents that can run commands are not affected.
-
 </details>
 
-## Platform Capabilities
+## What This Fork Changes
 
-| Platform | Capabilities and setup |
-|---|---|
-| Web, RSS, YouTube | Read web pages and RSS/Atom feeds; extract YouTube subtitles. No API key required. |
-| GitHub | Read public repositories; authenticate with gh to access private repositories, issues, and pull requests. |
-| Bilibili, V2EX | Search and view Bilibili videos; read V2EX posts and profiles. OpenCLI adds Bilibili subtitles. |
-| Web search | Tavily handles general search and requires an API key. Exa MCP is for semantic, academic, company, and people searches, or as a fallback. Exa authentication, limits, and pricing depend on the configured endpoint. |
-| Twitter/X, Reddit | Read individual public tweets without setup; Twitter search and timelines require login. Reddit requires login for search and reading; no anonymous path. |
-| Facebook, Instagram | On desktop, OpenCLI uses your existing Chrome session. |
-| XiaoHongShu | OpenCLI uses an existing Chrome session; MCP or legacy backends require cookies you export manually. |
-| LinkedIn, Xueqiu | Public pages, job listings, market data, and posts; some features need login or additional setup. |
-| Boss Zhipin, Xiaoyuzhou | Boss Zhipin uses a dedicated local Chrome session; Xiaoyuzhou transcription requires a Groq API key. |
+Compared with upstream [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) v1.5.0:
 
-For setup, ask your agent, for example, “Set up Twitter for me.” It will explain the required access and steps.
+**Search**
+- Tavily is the default for general web search, news, URL extraction, site crawling, and deep research.
+- Exa remains available for papers, companies, people, semantic/RAG search, and similar-page discovery, and as a fallback when Tavily is unavailable.
 
-Agent Reach is free and open source. Third-party quotas and fees—including Tavily, Exa MCP endpoints, and proxies—follow each provider's plan. See the complete [Agent Skill](agent_reach/skill/SKILL.md).
+**Doctor**
+- Verifies the Tavily key through the usage endpoint without spending a search credit, and reports remaining or exhausted quota.
+- Reports Exa status alongside Tavily.
+- Probes Jina Reader with a real request instead of always reporting OK.
+
+**CLI**
+- `agent-reach configure tavily-key` reads the key through a hidden prompt or `--stdin` and refuses keys passed as arguments.
+- `install --env` now handles XiaoHongShu and Reddit correctly.
+- Install, update, and MCP hints point to this fork.
+
+**Reliability**
+- The MCP server no longer blocks while Doctor runs.
+- Restricted filesystems produce a warning instead of a crash.
+- `transcribe` uses your configured YouTube browser cookies.
+
+**Agent skill**
+- Read-only tasks run directly; installs, logins, cookies, and browser actions require approval.
+- Finds the CLI via PATH → venv → `~/.local/bin` → conda.
+- Treats search results as untrusted data (prompt-injection defense).
+- Asks before sending private URLs or audio to remote services, and reports whether video text came from captions or ASR.
+
+No new dependencies or platform backends are added. Regression tests cover routing, quota states, malformed API responses, and secret handling.
 
 ## Search Routing
 
-| Task | Preferred backend |
+| Task | Backend |
 |---|---|
-| General web, news, recent information, URL extraction, site crawling, and deep research | Tavily |
-| Papers, academic research, companies, people, financial reports, semantic search, RAG, and similar-page discovery | Exa MCP |
+| General web, news, recent events | Tavily `/search` |
+| Read a URL, map or crawl a site, deep research | Tavily `/extract`, `/map`, `/crawl`, `/research` |
+| Papers, academic, technical research | Exa MCP |
+| Companies, people, financial reports | Exa MCP |
+| Semantic search, RAG, similar pages | Exa MCP |
+| Repositories, code, issues, PRs | GitHub (`gh`) |
 
-The agent selects a backend for each task. Tavily Research is optional, not required for every long report. A suitable connected host search/read tool may supplement or replace an unavailable backend, with coverage limits reported. For a supplied URL, the agent can read it directly without searching for it again. <code>agent-reach doctor</code> checks the Tavily usage endpoint and local Exa MCP configuration; it does not run searches or verify a remote Exa endpoint. A successful diagnostic also does not prove that a search returned the requested content.
+The agent picks a backend per task. If the chosen backend fails, it switches to another configured one and reports coverage limits. A supplied URL is read directly instead of searched. Doctor checks configuration and quota only; it does not prove a search returned the right content.
 
-Details: [English agent guide](agent_reach/skill/SKILL_en.md) · [Search reference (Chinese)](agent_reach/skill/references/search.md) · [Tavily setup (Chinese)](agent_reach/guides/setup-tavily.md) · [Exa setup (Chinese)](agent_reach/guides/setup-exa.md)
+Details: [Agent guide (English)](agent_reach/skill/SKILL_en.md) · [Search reference](agent_reach/skill/references/search.md) · [Tavily setup](agent_reach/guides/setup-tavily.md) · [Exa setup](agent_reach/guides/setup-exa.md)
 
-## Security and Uninstall
+## Platforms
 
-- Credentials are stored locally in <code>~/.agent-reach/config.yaml</code>. On Unix, the file is readable and writable only by its owner.
-- Agent Reach does not automatically read browser cookies or log you in. Cookies grant account access; use a dedicated account for cookie-based platforms.
-- XiaoHongShu's OpenCLI backend uses only an existing Chrome session you control. Other backends require cookies that you export manually.
-- Before uninstalling, preview with <code>agent-reach uninstall --dry-run</code>. A full uninstall removes local configuration, including tokens and cookies, plus Skill files. Use <code>--keep-config</code> to retain configuration. Third-party tools are not automatically removed.
+| Platform | What works | Setup |
+|---|---|---|
+| Web, RSS | Read pages and RSS/Atom feeds | None |
+| YouTube | Subtitles and metadata; ASR transcription | None; ASR needs a Groq or OpenAI key |
+| Web search | Tavily search/extract/crawl/research; Exa semantic search | Tavily API key; Exa MCP via mcporter |
+| GitHub | Public repos; private repos, issues, PRs | `gh auth login` for private access |
+| Twitter/X | Single public tweets; search and timelines | Login cookies for search |
+| Reddit | Search and read | Login required |
+| Bilibili, V2EX | Bilibili videos and subtitles; V2EX posts and profiles | OpenCLI for Bilibili subtitles |
+| XiaoHongShu | Notes and search | OpenCLI with your Chrome session, or manually exported cookies |
+| Facebook, Instagram | Posts and profiles | OpenCLI with your Chrome session |
+| LinkedIn | Profiles, jobs, posts | LinkedIn MCP login |
+| Xueqiu | Quotes, market data, posts | Some features need cookies |
+| Boss Zhipin | Job search | Dedicated local Chrome session |
+| Xiaoyuzhou | Podcast transcription | Groq API key |
+
+Ask your agent, for example, "Set up Twitter for me." It will explain the access required before changing anything.
+
+Agent Reach is free. Third-party services (Tavily, Exa endpoints, Groq/OpenAI, proxies) bill according to their own plans.
+
+## CLI Reference
+
+| Command | Purpose |
+|---|---|
+| `agent-reach install [--env auto\|local\|server] [--channels …] [--system] [--dry-run]` | Check the environment; install tools only with `--system` |
+| `agent-reach doctor [--json]` | Show channel status and fixes |
+| `agent-reach configure <name> [--stdin]` | Save `tavily-key`, `groq-key`, `openai-key`, `github-token`, `proxy`, or cookies |
+| `agent-reach configure --from-browser chrome --platform <p>` | Import cookies for one explicitly chosen platform |
+| `agent-reach transcribe <url-or-file>` | Transcribe audio/video via Groq or OpenAI Whisper |
+| `agent-reach skill --install` | Register the agent skill |
+| `agent-reach watch` / `check-update` | Health check and upstream release check |
+| `agent-reach uninstall [--dry-run] [--keep-config]` | Remove config and skill files |
+
+`check-update` compares against upstream releases; new upstream versions reach this fork only after they are merged.
+
+## Security
+
+- Credentials live in `~/.agent-reach/config.yaml`, readable only by you on Unix. Secrets are entered through hidden prompts or `--stdin`, never as command arguments.
+- Agent Reach never reads browser cookies or logs in on its own. Cookies grant account access, so use a dedicated account for cookie-based platforms.
+- `install` is check-only by default. System changes need `--system`; preview them with `--dry-run`.
+- `uninstall` removes config (tokens, cookies) and skill files. Use `--keep-config` to keep config. Third-party tools are not removed.
+
+## Development
+
+~~~bash
+git clone https://github.com/hbui290/Agent-Reach.git && cd Agent-Reach
+pip install -e '.[dev]'
+pytest tests -q
+ruff check agent_reach tests && mypy agent_reach
+~~~
+
+CI runs lint, type checks, tests on Python 3.10–3.13 and Windows, and a wheel build. Branch from `main`, open a PR, and keep the version identical in `pyproject.toml`, `agent_reach/__init__.py`, and `tests/test_cli.py`.
 
 ## Documentation
 
-- Installation and maintenance: [Install Guide](docs/install.md) · [Update Guide](docs/update.md) · [Troubleshooting](docs/troubleshooting.md)
-- Search: [English agent guide](agent_reach/skill/SKILL_en.md) · [Routing (Chinese)](agent_reach/skill/references/search.md) · [Tavily (Chinese)](agent_reach/guides/setup-tavily.md) · [Exa (Chinese)](agent_reach/guides/setup-exa.md)
-- Platforms and credentials: [Agent Skill](agent_reach/skill/SKILL.md) · [Social guide](agent_reach/skill/references/social.md) · [Cookie export](docs/cookie-export.md)
+- [Install Guide](docs/install.md) · [Update Guide](docs/update.md) · [Troubleshooting](docs/troubleshooting.md) · [Cookie export](docs/cookie-export.md)
+- [Agent Skill](agent_reach/skill/SKILL.md) · [Agent guide (English)](agent_reach/skill/SKILL_en.md) · [Social platforms](agent_reach/skill/references/social.md)
 
-## Contact and Contributions
+Most guides and skill references are in Chinese to stay mergeable with upstream.
 
-Report bugs and request features through [GitHub Issues](https://github.com/Panniantong/Agent-Reach/issues).
+## Credits
 
-- Email: [pnt01@foxmail.com](mailto:pnt01@foxmail.com)
-- X: [@Neo_Reidlab](https://x.com/Neo_Reidlab)
+Built on the work of [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) ([Star History](https://star-history.com/#Panniantong/Agent-Reach&Date)) and the tools it installs: [OpenCLI](https://github.com/jackwener/opencli), [twitter-cli](https://github.com/public-clis/twitter-cli), [rdt-cli](https://github.com/public-clis/rdt-cli), [bili-cli](https://github.com/public-clis/bilibili-cli), [xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp), [yt-dlp](https://github.com/yt-dlp/yt-dlp), [Jina Reader](https://github.com/jina-ai/reader), [Tavily](https://tavily.com), [Exa](https://exa.ai), [mcporter](https://github.com/nicobailon/mcporter), [feedparser](https://github.com/kurtmckee/feedparser), and [linkedin-mcp-server](https://github.com/stickerdaniel/linkedin-mcp-server).
 
-Business inquiries and community group:
+Upstream bugs and feature requests: [Panniantong/Agent-Reach issues](https://github.com/Panniantong/Agent-Reach/issues).
 
-<details>
-<summary>WeChat QR code and notes</summary>
+## License
 
-For business, include “Business + your need.” Builders can include “Builder + what you are building.” For the community group, include “Join group.”
-
-<p align="center">
-  <img src="docs/wechat-group-qr.jpg" width="240" alt="WeChat QR">
-</p>
-
-</details>
-
-<details>
-<summary>Acknowledgments</summary>
-
-Thanks to [OpenCLI](https://github.com/jackwener/opencli), [twitter-cli](https://github.com/public-clis/twitter-cli), [rdt-cli](https://github.com/public-clis/rdt-cli), [bili-cli](https://github.com/public-clis/bilibili-cli), [xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp), [yt-dlp](https://github.com/yt-dlp/yt-dlp), [Jina Reader](https://github.com/jina-ai/reader), [Exa](https://exa.ai), [mcporter](https://github.com/nicobailon/mcporter), [feedparser](https://github.com/kurtmckee/feedparser), and [mcp-server-linkedin](https://github.com/stickerdaniel/linkedin-mcp-server).
-
-</details>
-
-## License and Links
-
-[MIT](LICENSE) · [Star History](https://star-history.com/#Panniantong/Agent-Reach&Date) · [AtomGit mirror](https://atomgit.com/qq_51337814/Agent-Reach) · [Agent Skills Hub](https://agentskillshub.top/)
+[MIT](LICENSE)
