@@ -265,13 +265,13 @@ def test_vivaldi_profile_uses_browser_cookie3_with_that_database(
 
 def test_vivaldi_user_data_dir_per_platform(monkeypatch):
     monkeypatch.setattr(sys, "platform", "darwin")
-    assert str(cookie_extract._chromium_user_data_dir("vivaldi")).endswith(
-        "Library/Application Support/Vivaldi"
-    )
+    darwin = cookie_extract._chromium_user_data_dir("vivaldi")
+    assert darwin is not None
+    assert darwin.parts[-3:] == ("Library", "Application Support", "Vivaldi")
     monkeypatch.setattr(sys, "platform", "linux")
-    assert str(cookie_extract._chromium_user_data_dir("vivaldi")).endswith(
-        ".config/vivaldi"
-    )
+    linux = cookie_extract._chromium_user_data_dir("vivaldi")
+    assert linux is not None
+    assert linux.parts[-2:] == (".config", "vivaldi")
 
 
 def test_vivaldi_user_data_dir_on_windows(monkeypatch, tmp_path):

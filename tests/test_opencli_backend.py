@@ -242,7 +242,9 @@ def test_store_install_scan_includes_vivaldi_profiles(tmp_path, monkeypatch):
         / "1.0.0"
     ).mkdir(parents=True)
 
+    # expanduser reads HOME on POSIX and USERPROFILE on Windows.
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.delenv("LOCALAPPDATA", raising=False)
 
     assert _extension_installed_on_disk()
