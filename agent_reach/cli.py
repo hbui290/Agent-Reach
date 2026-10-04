@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 
 from agent_reach import __version__
 
@@ -1671,7 +1672,7 @@ def _cmd_transcribe(args):
         print(text)
 
 
-def _write_text_atomic(target: "Path", text: str) -> None:
+def _write_text_atomic(target: Path, text: str) -> None:
     """Replace target only after the new content is fully on disk."""
     import tempfile
 
