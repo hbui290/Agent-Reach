@@ -120,13 +120,11 @@ def test_twitter_operational_docs_explain_the_environment_boundary():
     assert not any(claim in all_text for claim in rendered_as_verified)
 
 
-def test_localized_readmes_keep_current_bilibili_and_xhs_routes():
-    """Translations must not revive retired yt-dlp/Bilibili or XHS defaults."""
+def test_readmes_keep_current_bilibili_and_xhs_routes():
+    """READMEs must not revive retired yt-dlp/Bilibili or XHS defaults."""
     overview_docs = (
         ROOT / "README.md",
         ROOT / "docs" / "README_en.md",
-        ROOT / "docs" / "README_ja.md",
-        ROOT / "docs" / "README_ko.md",
     )
 
     for path in overview_docs:
@@ -134,20 +132,10 @@ def test_localized_readmes_keep_current_bilibili_and_xhs_routes():
         assert "bilibili.py     → yt-dlp" not in text, path.relative_to(ROOT)
         assert "YouTube + Bilibili" not in text, path.relative_to(ROOT)
 
-    # Japanese and Korean remain full platform references. The root English
-    # README is intentionally concise and docs/README_en.md redirects to it.
-    for path in (ROOT / "docs" / "README_ja.md", ROOT / "docs" / "README_ko.md"):
-        text = path.read_text(encoding="utf-8")
-        assert "bili-cli" in text, path.relative_to(ROOT)
-        assert (
-            "xiaohongshu.py  → OpenCLI ▸ xiaohongshu-mcp ▸ xhs-cli"
-            in text
-        ), path.relative_to(ROOT)
 
-
-def test_localized_readmes_do_not_advertise_retired_channels():
-    """Japanese and Korean docs must match the channels shipped by the CLI."""
-    for path in (ROOT / "docs" / "README_ja.md", ROOT / "docs" / "README_ko.md"):
+def test_readmes_do_not_advertise_retired_channels():
+    """READMEs must match the channels shipped by the CLI."""
+    for path in (ROOT / "README.md", ROOT / "docs" / "README_en.md"):
         text = path.read_text(encoding="utf-8").lower()
         assert "douyin" not in text, path.relative_to(ROOT)
         assert "weibo" not in text, path.relative_to(ROOT)
