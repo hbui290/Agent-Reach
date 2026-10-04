@@ -1,12 +1,18 @@
 ---
 name: agent-reach
 description: >
-  MUST USE for internet research/search/look up, community investigations, and
-  retrieving content from a supplied URL. Route web, GitHub, social, transcripts,
-  jobs, RSS and market data through this fork's task-specific tools and backends.
-  Includes Xiaoyuzhou Podcast, LinkedIn and social platforms. Prefer an applicable
-  dedicated skill; not for processing supplied content alone or posting/trading.
-  Read only relevant references.
+  MUST USE when user wants to research/search/look up/find anything on the
+  internet — e.g. "research this topic", "do a deep dive on X", "search the
+  web for X", "see what people say about X", "look this up".
+
+  Also MUST USE when user shares any URL/link or mentions a platform whose content
+  is needed: Twitter/X, Reddit, Facebook, Instagram, YouTube, GitHub, Bilibili,
+  XiaoHongShu, Xiaoyuzhou Podcast, LinkedIn/Boss Zhipin/jobs, V2EX, Xueqiu (stocks),
+  RSS. Routes via this fork's tools/backends; read only relevant references.
+
+  NOT for: only processing content the user already supplied (translate/summarize/
+  write reports); posting/commenting/liking/trading; platforms that already have
+  an applicable dedicated skill (prefer that skill).
 metadata:
   homepage: https://github.com/Panniantong/Agent-Reach
 ---
@@ -76,12 +82,14 @@ Agent Reach's optional MCP exposes only get_status, not search/read tools.
    before starting.
 3. **On failure, follow the retry chains in references/** — never guess
    commands.
-4. **Broad research:** infer relevant source families within the user's scope
-   (such as primary material, independent reporting and relevant community discussion).
-   Cross-check multiple independent families when available and authorized; avoid
-   irrelevant platforms. Independent read-only calls may run in parallel. Report
-   families actually checked and gaps rather than treating one result as broad
-   coverage. Direct lookups can stop at sufficient evidence.
+4. **Broad research:** use this source-combination recipe as a starting point when
+   expanding coverage: Tavily for general web/news; Exa for academic, company/person
+   and semantic discovery (also the fallback when Tavily is unavailable); X/Reddit for community discussion; Xiaohongshu/Bilibili
+   for Chinese-language context. Choose groups relevant to the question and actually
+   available and authorized; this is a menu for expanding research, not a requirement
+   to query every platform. Cross-check independent sources, preferably from different
+   groups, when possible; independent read-only calls may run in parallel. Report what
+   was covered and what was missed, and stop direct lookups once evidence is sufficient.
 5. **Watch versions proactively:** after substantial research/multi-platform work,
    run `agent-reach check-update` when the local CLI is available. Reuse a check
    already made this turn; do not repeat the same version notice. A failed check

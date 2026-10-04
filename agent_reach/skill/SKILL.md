@@ -1,12 +1,17 @@
 ---
 name: agent-reach
 description: >
-  MUST USE for internet research/search/look up, community investigations, and
-  retrieving content from a supplied URL. Route web, GitHub, social, video字幕,
-  jobs, RSS and market data through this fork's task-specific tools and backends.
-  包括小红书/X/Reddit/Facebook/Instagram/B站/YouTube/LinkedIn/Boss直聘/小宇宙/雪球。
-  Prefer an applicable dedicated skill; not for processing supplied content alone
-  or posting/trading. Read only relevant references.
+  MUST USE when user wants to 调研/research/搜索/search/查/找/look up anything
+  on the internet — e.g. 全网调研 X / 帮我调研一下 X / 查一下 X / 搜搜 X /
+  看看大家怎么评价 X / X 上有什么讨论 / research this topic。
+
+  Also MUST USE when user shares any URL/链接 or mentions a platform whose content
+  is needed: 小红书/xhs, Twitter/推特/X, B站/bilibili, Reddit, Facebook, Instagram,
+  V2EX, LinkedIn/领英/Boss直聘/招聘/求职/jobs, YouTube, GitHub, 小宇宙播客,
+  雪球/股票行情, RSS. Routes via this fork's tools/backends; read only relevant references.
+
+  NOT for: 只加工用户已提供的内容（翻译/总结/写报告）；发帖/评论/点赞/交易等写操作；
+  已有适用专用 skill 的平台（先用专用 skill）。
 metadata:
   homepage: https://github.com/Panniantong/Agent-Reach
 ---
@@ -62,10 +67,11 @@ ChatGPT web 不会因读到此 skill 就能访问用户机器的 CLI、repo 或�
    对应 reference 的只读返回必须包含实际所需内容，版本号或退出码 0 不够。
 2. **声明你在用什么**：开始干活前说一句「使用 agent-reach 的 X 平台 / Y 后端」。
 3. **失败按 references 里的重试链处理**，不要瞎猜命令。
-4. **广泛调研**：按用户需要的来源范围组合网页与相关社区，独立只读检索可并行。
-   广泛/深入研究先推定相关来源类别（如一手资料、独立报道、相关社区），在可用且
-   获授权时交叉检查多个独立类别；不强制无关平台。汇报实际覆盖和未覆盖的类别，
-   不把单个结果或未搜索的平台算成广泛覆盖。简单直查取得足够来源即可结束。
+4. **广泛调研**：需要拓宽研究范围时，把这组来源组合当作起点：Tavily 查通用网页/新闻；
+   Exa 找论文、公司/人物和语义相关页面（Tavily 不可用时也作备选）；X/Reddit 看社区讨论；小红书/B站补充中文场景。
+   按问题选择相关、实际可用且获授权的来源；这是一份扩展参考，不要求每次跑完所有平台。
+   条件允许时交叉检查独立来源，优先选择不同类别；独立只读检索可并行。
+   汇报实际覆盖与缺口。简单直查取得足够来源即可结束。
 5. **主动盯版本**：完成较大的调研/多平台任务后，本机 CLI 可用时运行
    `agent-reach check-update`（很快，一个 API 调用）。有新版就在收尾汇报里附一句：
    「Agent Reach 上游有新版 vX.Y.Z；升级前需要核对本机 fork 来源与变更」。
