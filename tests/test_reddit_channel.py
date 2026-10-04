@@ -274,3 +274,16 @@ def test_jwt_expiring_soon_asks_for_reexport(isolated_home):
 def test_non_jwt_cookie_keeps_file_age_fallback(isolated_home):
     _, message = _check_with_session(isolated_home, "opaque", time.time() - 8 * 86400)
     assert "超过 7 天" in message
+
+
+def test_absurd_jwt_expiry_falls_back_instead_of_crashing(isolated_home):
+    import base64
+
+    def enc(raw):
+        return base64.urlsafe_b64encode(raw.encode()).rstrip(b"=").decode()
+
+    payload = '{"exp": 1' + "0" * 400 + "}"
+    token = f"{enc('{}')}.{enc(payload)}.sig"
+    status, message = _check_with_session(isolated_home, token, time.time() - 8 * 86400)
+    assert status == "warn"
+    assert "超过 7 天" in message

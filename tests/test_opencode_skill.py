@@ -150,7 +150,9 @@ def test_full_uninstall_exits_nonzero_when_removal_fails(
         _cmd_uninstall(SimpleNamespace(dry_run=False, keep_config=False))
 
     assert exc.value.code == 1
-    assert "Cleanup incomplete" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Cleanup incomplete" in out
+    assert "already clean" not in out
 
 
 def test_skill_uninstall_reports_failure(tmp_path: Path):

@@ -47,16 +47,19 @@ def _session_cookie_expiry(token: object) -> float | None:
     payload = parts[1] + "=" * (-len(parts[1]) % 4)
     try:
         claims = json.loads(base64.urlsafe_b64decode(payload))
-    except ValueError:
+    except (ValueError, RecursionError):
         return None
     if not isinstance(claims, dict):
         return None
     expiry = claims.get("exp")
     if isinstance(expiry, bool) or not isinstance(expiry, (int, float)):
         return None
-    if not math.isfinite(expiry):
+    try:
+        if not math.isfinite(expiry):
+            return None
+        return float(expiry) - time.time()
+    except OverflowError:  # an int too large for a float is no real expiry
         return None
-    return expiry - time.time()
 
 
 class RedditChannel(Channel):
