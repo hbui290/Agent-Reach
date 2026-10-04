@@ -999,3 +999,46 @@ class TestConfigOpenAIWhisper:
         assert not fake_config.is_configured("openai_whisper")
         fake_config.set("openai_api_key", "sk-test")
         assert fake_config.is_configured("openai_whisper")
+
+
+class TestFfmpegInvocation:
+    """ffmpeg must not read the caller's stdin and must get unambiguous paths."""
+
+    def test_compress_detaches_stdin_and_uses_absolute_paths(
+        self, monkeypatch, tmp_path
+    ):
+        calls = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append((cmd, kwargs))
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        monkeypatch.setattr(tr, "_require", lambda _name: None)
+        monkeypatch.setattr(tr.subprocess, "run", fake_run)
+        monkeypatch.chdir(tmp_path)
+
+        tr.compress_audio(Path("Podcast: interview.wav"), Path("."))
+
+        cmd, kwargs = calls[0]
+        assert kwargs["stdin"] is subprocess.DEVNULL
+        src = cmd[cmd.index("-i") + 1]
+        assert Path(src).is_absolute()
+        assert Path(cmd[-1]).is_absolute()
+
+    def test_probe_detaches_stdin_and_uses_absolute_path(
+        self, monkeypatch, tmp_path
+    ):
+        calls = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append((cmd, kwargs))
+            return subprocess.CompletedProcess(cmd, 0, "12.5\n", "")
+
+        monkeypatch.setattr(tr, "_require", lambda _name: None)
+        monkeypatch.setattr(tr.subprocess, "run", fake_run)
+        monkeypatch.chdir(tmp_path)
+
+        assert tr._probe_audio_duration(Path("-odd.m4a")) == 12.5
+        cmd, kwargs = calls[0]
+        assert kwargs["stdin"] is subprocess.DEVNULL
+        assert Path(cmd[cmd.index("-i") + 1]).is_absolute()
