@@ -34,7 +34,7 @@ AI 에이전트는 이미 인터넷에 접근할 수 있습니다 — 하지만 
 **Agent Reach는 이를 하나의 명령으로 바꿉니다:**
 
 ```
-Install Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
+Install Agent Reach: https://raw.githubusercontent.com/hbui290/Agent-Reach/main/docs/install.md
 ```
 
 이 명령을 에이전트에 복사해서 붙여넣으세요. 몇 분 뒤에는 트윗을 읽고, Reddit을 검색하고, Bilibili를 볼 수 있게 됩니다.
@@ -42,7 +42,7 @@ Install Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/m
 **이미 설치하셨나요? 한 번에 업데이트하세요:**
 
 ```
-Update Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/update.md
+Update Agent Reach: https://raw.githubusercontent.com/hbui290/Agent-Reach/main/docs/update.md
 ```
 
 ### ✅ 시작하기 전에 알면 좋은 것들
@@ -85,21 +85,21 @@ Update Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/ma
 이 명령을 AI 에이전트(Claude Code, OpenClaw, Cursor 등)에 입력하세요:
 
 ```
-Install Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
+Install Agent Reach: https://raw.githubusercontent.com/hbui290/Agent-Reach/main/docs/install.md
 ```
 
 에이전트가 자동으로 설치하고, 환경을 감지하고, 준비된 항목을 알려줍니다.
 
 > 🔄 **이미 설치하셨나요?** 한 번에 업데이트:
 > ```
-> Update Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/update.md
+> Update Agent Reach: https://raw.githubusercontent.com/hbui290/Agent-Reach/main/docs/update.md
 > ```
 
 <details>
 <summary>수동 설치</summary>
 
 ```bash
-pip install https://github.com/Panniantong/agent-reach/archive/main.zip
+pip install https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip
 agent-reach install --env=auto           # 읽기 전용 확인 (기본값)
 agent-reach install --env=auto --system  # 시스템 변경을 명시적으로 승인한 경우에만
 ```
@@ -109,7 +109,7 @@ agent-reach install --env=auto --system  # 시스템 변경을 명시적으로 �
 <summary>Skill로 설치 (Claude Code / OpenClaw / Skill을 지원하는 모든 에이전트)</summary>
 
 ```bash
-npx skills add Panniantong/Agent-Reach@agent-reach
+npx skills add hbui290/Agent-Reach@agent-reach
 ```
 
 Skill이 설치된 후, 에이전트는 `agent-reach` CLI 사용 가능 여부를 자동 감지하고 필요한 경우 설치합니다.
@@ -271,7 +271,7 @@ Agent Reach는 Reddit을 위해 [rdt-cli](https://github.com/public-clis/rdt-cli
 <details>
 <summary><strong>Agent Reach는 Claude Code / Cursor / Windsurf / OpenClaw와 호환되나요?</strong></summary>
 
-네! Agent Reach는 설치 + 설정 도구입니다. Shell 명령을 실행할 수 있는 모든 AI 코딩 에이전트가 사용할 수 있습니다 — Claude Code, Cursor, Windsurf, OpenClaw, Codex 등. `pip install https://github.com/Panniantong/agent-reach/archive/main.zip` 실행 후 먼저 `agent-reach install`로 읽기 전용 검사를 하고, 시스템 변경을 명시적으로 승인한 경우에만 `agent-reach install --system`을 실행합니다. PyPI의 동명 패키지는 다른 프로젝트입니다.
+네! Agent Reach는 설치 + 설정 도구입니다. Shell 명령을 실행할 수 있는 모든 AI 코딩 에이전트가 사용할 수 있습니다 — Claude Code, Cursor, Windsurf, OpenClaw, Codex 등. `pip install https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip` 실행 후 먼저 `agent-reach install`로 읽기 전용 검사를 하고, 시스템 변경을 명시적으로 승인한 경우에만 `agent-reach install --system`을 실행합니다. PyPI의 동명 패키지는 다른 프로젝트입니다.
 </details>
 
 <details>

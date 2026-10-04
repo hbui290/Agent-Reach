@@ -2271,9 +2271,10 @@ def _github_get_with_retry(url, timeout=10, retries=3, sleeper=time.sleep):
 #: agent through all three (docs/update.md); bare pip only updates the package.
 _UPDATE_INSTRUCTIONS = (
     "更新方式（推荐，复制这句话给你的 AI Agent，会完整更新本体+上游工具+skill）：\n"
-    "  帮我更新 Agent Reach：https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/update.md\n"
+    "  帮我更新 Agent Reach：https://raw.githubusercontent.com/hbui290/Agent-Reach/main/docs/update.md\n"
     "仅更新本体（不含上游工具和 skill）：\n"
-    "  pip install --upgrade https://github.com/Panniantong/agent-reach/archive/main.zip"
+    "  pip install --upgrade https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip\n"
+    "注意：版本号对比的是上游发布；fork 合并上游后才会包含新版。"
 )
 
 
@@ -2420,7 +2421,7 @@ def _cmd_watch():
             for line in release_body.strip().split("\n")[:10]:
                 print(f"    {line}")
         print("  更新（一句话发给 Agent 即可完整更新）：")
-        print("    帮我更新 Agent Reach：https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/update.md")
+        print("    帮我更新 Agent Reach：https://raw.githubusercontent.com/hbui290/Agent-Reach/main/docs/update.md")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ description: >
   write reports); posting/commenting/liking/trading; platforms that already have
   an applicable dedicated skill (prefer that skill).
 metadata:
-  homepage: https://github.com/Panniantong/Agent-Reach
+  homepage: https://github.com/hbui290/Agent-Reach
 ---
 
 # Agent Reach — internet capability router
@@ -128,17 +128,17 @@ personal information into a query.
 
 ```bash
 # Tavily web search (primary, see references/search.md)
-# `agent-reach configure tavily-key` stores the key in config.yaml; load it when the
-# env var is unset, in the same shell command as curl, without echoing it
+# `agent-reach configure tavily-key` stores the key in config.yaml; like Doctor, read
+# config.yaml first, then the TAVILY_API_KEY env var. Same shell command as curl; never echo it
 AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
-PY=$(head -1 "$AR" | sed 's/^#!//')
-export TAVILY_API_KEY="${TAVILY_API_KEY:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")')}"
-curl -sS https://api.tavily.com/search -H "Authorization: Bearer $TAVILY_API_KEY" -H "Content-Type: application/json" -d '{"query":"query","search_depth":"advanced","max_results":5}'
+PY=$(head -1 "$AR" 2>/dev/null | sed 's/^#!//')
+export TAVILY_API_KEY="$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")' 2>/dev/null || printf %s "$TAVILY_API_KEY")"
+curl -sS https://api.tavily.com/search -H "Authorization: Bearer $TAVILY_API_KEY" -H "Content-Type: application/json" -d '{"query":"query","search_depth":"advanced","max_results":5,"include_answer":false}'
 
 # Exa web search (specialized task or Tavily-unavailable fallback)
 mcporter call exa.web_search_exa query=query numResults=5 "objective=Find relevant sources for the requested query."
 
-# Read any web page
+# Read a public web page (private/internal/signed URLs: see references/web.md)
 curl -s "https://r.jina.ai/URL"
 
 # GitHub search

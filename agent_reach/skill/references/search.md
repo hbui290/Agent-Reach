@@ -58,11 +58,11 @@ Tavily 适合需要来源、时效和正文抽取的研究任务。先 Search �
 # 交互式配置使用隐藏输入；自动化时从管道传值并追加 --stdin
 agent-reach configure tavily-key
 
-# 直接调用 API：TAVILY_API_KEY 未设置时从已保存的 config.yaml 载入（不回显）。
+# 直接调用 API：与 Doctor 一致，先读 config.yaml，没有时用 TAVILY_API_KEY 环境变量（不回显）。
 # Agent 的每条 Shell 命令通常是独立进程，载入与 curl 必须在同一条命令里。
 AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
-PY=$(head -1 "$AR" | sed 's/^#!//')
-export TAVILY_API_KEY="${TAVILY_API_KEY:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")')}"
+PY=$(head -1 "$AR" 2>/dev/null | sed 's/^#!//')
+export TAVILY_API_KEY="$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")' 2>/dev/null || printf %s "$TAVILY_API_KEY")"
 curl -sS https://api.tavily.com/search \
   -H "Authorization: Bearer $TAVILY_API_KEY" \
   -H "Content-Type: application/json" \
@@ -82,6 +82,18 @@ curl -sS https://api.tavily.com/search \
 需要正文且使用 Tavily 时按需调用 `/extract`；长篇报告可在预算/授权适合时用 `/research`，不作为报告的必需步骤。
 不要为每个普通查询直接调用 Research。
 
+其他端点沿用上面的 key 载入和请求头，只换 URL 与 JSON body（必填字段以 Tavily OpenAPI 为准）：
+
+| 端点 | 必填 | 示例 body |
+|-----|-----|---------|
+| `POST /extract` | `urls` | `{"urls":["https://example.com/a"],"extract_depth":"basic","format":"markdown"}` |
+| `POST /map` | `url` | `{"url":"https://docs.example.com","max_depth":1,"limit":50}` |
+| `POST /crawl` | `url` | `{"url":"https://docs.example.com","instructions":"API reference pages","max_depth":1,"limit":20}` |
+| `POST /research` | `input` | `{"input":"research question","model":"auto"}`，返回 `request_id` |
+| `GET /research/{request_id}` | — | 轮询 Research 结果，直到 `status` 为 `completed` 或 `failed` |
+
+Crawl 和 Research 消耗的 credit 明显高于 Search/Extract；先用 Map 或小 `limit` 确认范围。
+
 ## Exa（专项 + 备选）
 
 任务路由到 Exa 时，或 Tavily 没有 API key、配额耗尽、API 暂时不可用时，使用 Exa MCP：
@@ -93,6 +105,9 @@ mcporter call exa.web_search_exa \
   "objective=Find relevant sources for the requested query."
 ```
 
+Exa MCP 的 `get_code_context_exa` 已弃用且默认不注册。代码问题也使用
+`web_search_exa`；需要精确搜索仓库内容时，改用 `dev.md` 中的 GitHub 搜索。
+
 `EXA_SEARCH_BACKEND=exa` 只会把 Exa 提到 Doctor 的第一检查顺位，不会自动分发搜索命令；
 未知覆盖值不会禁用其他后端。实际搜索由 Agent 按任务选择；所选后端失败时主动换用其他已配置后端（用户明确限定后端时除外）。
 
@@ -103,6 +118,7 @@ mcporter call exa.web_search_exa \
 | host 原生搜索/读取 | 补充、来源核验、适用专用 skill 或后端不可用时的替代；不默认绕过 fork 后端 |
 | Tavily | 广泛网页/新闻发现、域名过滤；按需 Search → Extract，Research 非必需 |
 | Exa | 论文、公司/人物、语义/RAG、相似页面发现 |
+| 智谱搜索（my-mcp-tools，仅已连接时） | 中文网页搜索补充；Tavily/Exa 中文结果不足时使用 |
 | GitHub 搜索 | 仓库、代码、Issue、PR；见 `dev.md` |
 
 成功需来源与请求对象、时效、字段和范围匹配。搜索摘要/自动答案只是线索；
