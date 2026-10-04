@@ -39,10 +39,12 @@ All Agent Reach files go in dedicated directories — **never in the agent works
 
 | Purpose | Directory | Example |
 |---------|-----------|---------|
-| Config & tokens | `~/.agent-reach/` | `~/.agent-reach/config.json` |
+| Config & tokens | `~/.agent-reach/` | `~/.agent-reach/config.yaml` |
 | Upstream tool repos | `~/.agent-reach/tools/` | `~/.agent-reach/tools/xiaoyuzhou/` |
 | Temporary files | `/tmp/` | `/tmp/yt-dlp-output/` |
-| Skills | `~/.openclaw/skills/agent-reach/` | SKILL.md |
+| Skills | `~/.agents/skills/agent-reach/` (and other detected agent skill dirs) | `SKILL.md` + `references/*.md` |
+
+`agent-reach skill --install` copies the skill into every skill root that already exists (`~/.agents/skills`, `~/.config/opencode/skills`, `~/.openclaw/skills`, `~/.claude/skills`, and `$OPENCLAW_HOME/.openclaw/skills` when set); if none exists it creates `~/.agents/skills/agent-reach/`.
 
 **Why?** If you clone repos or create files in the workspace, it pollutes the user's project directory and can break their agent over time. Keep the workspace clean.
 

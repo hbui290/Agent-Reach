@@ -229,6 +229,15 @@ def test_update_guide_says_doctor_does_not_install_skills():
     assert "agent-reach skill --install" in text
 
 
+def test_install_guide_directory_table_matches_real_layout():
+    """Config is YAML and skill install writes SKILL.md plus references/."""
+    text = (ROOT / "docs" / "install.md").read_text(encoding="utf-8")
+    assert "~/.agent-reach/config.json" not in text
+    assert "~/.agent-reach/config.yaml" in text
+    assert "~/.agents/skills/agent-reach/" in text
+    assert "`references/*.md`" in text
+
+
 def test_skill_routes_finance_and_documents_opencli_discovery():
     skills = (
         ROOT / "agent_reach" / "skill" / "SKILL.md",
