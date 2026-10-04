@@ -13,6 +13,8 @@ import json
 import sys
 import threading
 
+from rich.text import Text
+
 from agent_reach.config import Config
 from agent_reach.core import AgentReach
 from agent_reach.utils.text import scrub_url_credentials
@@ -60,21 +62,20 @@ def create_server():
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict):
+        # Raising lets the MCP SDK mark the result isError=True.
+        if name != "get_status":
+            raise ValueError(f"Unknown tool: {name}")
         try:
-            if name == "get_status":
-                result = await asyncio.to_thread(_doctor_report, eyes)
-            else:
-                result = f"Unknown tool: {name}"
-
-            text = json.dumps(result, ensure_ascii=False, indent=2) if isinstance(result, (dict, list)) else str(result)
-            return [TextContent(type="text", text=text)]
+            result = await asyncio.to_thread(_doctor_report, eyes)
         except Exception as e:
-            return [
-                TextContent(
-                    type="text",
-                    text=f"Error: {scrub_url_credentials(e)}",
-                )
-            ]
+            raise RuntimeError(f"Error: {scrub_url_credentials(e)}") from None
+
+        if isinstance(result, (dict, list)):
+            text = json.dumps(result, ensure_ascii=False, indent=2)
+        else:
+            # Doctor renders Rich markup for terminals; agents need plain text.
+            text = Text.from_markup(str(result)).plain
+        return [TextContent(type="text", text=text)]
 
     return server
 

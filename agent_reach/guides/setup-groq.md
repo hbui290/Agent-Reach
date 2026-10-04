@@ -10,20 +10,12 @@
 agent-reach doctor | grep -i "groq\|whisper"
 ```
 
-2. 如果用户提供了 key，写入配置：
-```python
-from agent_reach.config import Config
-c = Config()
-c.set("groq_api_key", "用户提供的KEY")
+2. 让用户在自己的终端里写入 key（隐藏输入，key 不进入聊天记录、命令参数或 Shell 历史）：
+```bash
+agent-reach configure groq-key
 ```
 
-3. 测试（可选）：
-```bash
-curl -s https://api.groq.com/openai/v1/models \
-  -H "Authorization: Bearer 用户提供的KEY" \
-  -o /dev/null -w "%{http_code}"
-```
-返回 200 = 可用
+3. 再次运行第 1 步的 `doctor` 确认已配置。
 
 ## 需要用户手动做的步骤
 
@@ -36,12 +28,11 @@ curl -s https://api.groq.com/openai/v1/models \
 > 2. 用 Google 账号或邮箱注册
 > 3. 点击左侧 "API Keys"
 > 4. 点击 "Create API Key"
-> 5. 复制生成的 Key，发给我
+> 5. 复制生成的 Key，在终端运行 `agent-reach configure groq-key` 并粘贴（不要发到聊天里）
 >
 > Groq 提供免费额度，日常使用完全够用。
 
-## Agent 收到 key 后的操作
+## 用户配置完成后的操作
 
-1. 写入配置：`config.set("groq_api_key", key)`
-2. 测试 API 可用性
-3. 反馈："✅ 语音转文字已开启！现在遇到没有字幕的视频，我也能帮你提取内容了。"
+1. 运行 `agent-reach doctor` 确认已配置
+2. 反馈："✅ 语音转文字已开启！现在遇到没有字幕的视频，我也能帮你提取内容了。"

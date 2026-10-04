@@ -5,8 +5,8 @@ Twitter 基础阅读通过 Jina Reader 免费可用，无需配置。
 高级功能需要 twitter-cli（@public-clis/twitter-cli）：
 
 - 搜索推文（`twitter search`）
-- 读取完整推文和对话链（`twitter tweet`、`twitter thread`）
-- 用户时间线（`twitter timeline`）
+- 读取完整推文和回复（`twitter tweet`）
+- 用户推文列表（`twitter user-posts`）
 - 长文阅读（`twitter article`）
 
 twitter-cli 是免费开源工具（pipx 安装），但需要你的 Twitter 账号 cookie。
@@ -60,7 +60,7 @@ agent-reach configure twitter-cookies --sync-legacy-twitter
 先让用户确认，再手工删除上述两个文件。
 
 `twitter` 是独立的上游命令，不会读取 Agent Reach 的配置文件。直接运行
-`twitter status/search/read/...` 时，必须按下节在当前 Shell 或子进程环境中
+`twitter status/search/tweet/...` 时，必须按下节在当前 Shell 或子进程环境中
 显式设置 `TWITTER_AUTH_TOKEN` 和 `TWITTER_CT0`。不要依赖自动读取浏览器 Cookie。
 
 ## 手动设置 Cookie

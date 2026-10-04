@@ -45,12 +45,12 @@ xhs search "关键词"
 
 阅读笔记详情：
 ```bash
-xhs read NOTE_ID
+xhs read NOTE_ID_OR_URL   # 必须用搜索结果中的 URL/ID，不能裸 note_id
 ```
 
 查看评论：
 ```bash
-xhs comments NOTE_ID
+xhs comments NOTE_ID_OR_URL
 ```
 
 ## 常见问题
@@ -62,8 +62,9 @@ A: 重新通过 Cookie-Editor 手工导出，再运行
 **Q: 小红书提示 IP 风险？**
 A: 推荐使用住宅代理：`export HTTP_PROXY="http://user:pass@ip:port"`。
 
-**Q: xhs-cli 不支持我的系统？**
-A: 确保 Python 3.10+ 和 pipx 已安装。运行 `pipx install xiaohongshu-cli` 即可。
+**Q: 没有安装 xhs-cli？**
+A: 不需要新装。xhs-cli 上游自 2026-03 停更，Agent Reach 不再默认安装；
+桌面用 OpenCLI，服务器用下面的 xiaohongshu-mcp。
 
 ## 服务器方案：Docker MCP
 

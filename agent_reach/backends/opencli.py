@@ -20,6 +20,7 @@ Probing notes (verified live):
 import glob
 import json
 import os
+import re
 import urllib.request
 from dataclasses import dataclass
 
@@ -139,7 +140,7 @@ def opencli_status(timeout: int = 10) -> OpenCLIStatus:
     )
     if version_probe.status == "missing":
         return OpenCLIStatus(installed=False)
-    if not version_probe.ok:
+    if version_probe.status == "broken":
         return OpenCLIStatus(
             installed=True,
             broken=True,
@@ -148,8 +149,20 @@ def opencli_status(timeout: int = 10) -> OpenCLIStatus:
                 f"  npm install -g {OPENCLI_PACKAGE}"
             ),
         )
+    if not version_probe.ok:
+        # Timeout / non-zero exit: keep the real output instead of guessing.
+        detail = (version_probe.output or version_probe.hint).strip()[:300]
+        return OpenCLIStatus(
+            installed=True,
+            broken=True,
+            hint=f"opencli --version 检查失败（{version_probe.status}）：{detail}",
+        )
 
-    st = OpenCLIStatus(installed=True, version=version_probe.output.strip())
+    # stderr may carry node warnings; keep only the version itself.
+    output = version_probe.output.strip()
+    match = re.search(r"\d+\.\d+\.\d+\S*", output)
+    version = match.group(0) if match else (output.splitlines() or [""])[0]
+    st = OpenCLIStatus(installed=True, version=version)
 
     daemon_status = _fetch_daemon_status(timeout)
     if daemon_status is not None:

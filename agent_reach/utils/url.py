@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 _BLOCKED_PUBLIC_FETCH_HOSTS = {
     "home.arpa",
@@ -63,7 +63,11 @@ def normalize_public_http_url(url: str) -> str:
         parsed = urlsplit(candidate)
         host = (parsed.hostname or "").lower().rstrip(".")
         # Accessing the port rejects malformed or out-of-range authorities.
-        _ = parsed.port
+        port = parsed.port
+        # IDNA folds lookalikes (fullwidth letters) before the blocklist check
+        # and yields the ASCII host that HTTP clients require.
+        if not host.isascii():
+            host = host.encode("idna").decode("ascii")
     except (TypeError, ValueError):
         raise ValueError("only public HTTP(S) URLs are allowed") from None
 
@@ -81,7 +85,22 @@ def normalize_public_http_url(url: str) -> str:
     ):
         raise ValueError("only public HTTP(S) URLs are allowed")
 
-    return parsed.geturl()
+    if parsed.netloc.isascii():
+        netloc = parsed.netloc
+    else:
+        netloc = host if port is None else f"{host}:{port}"
+    # Percent-encode non-ASCII path/query characters; existing escapes and
+    # reserved delimiters are kept as-is.
+    safe = "/%:@!$&'()*+,;=?#~[]"
+    return urlunsplit(
+        (
+            parsed.scheme,
+            netloc,
+            quote(parsed.path, safe=safe),
+            quote(parsed.query, safe=safe),
+            quote(parsed.fragment, safe=safe),
+        )
+    )
 
 
 def domain_matches(host: str, *domains: str) -> bool:
