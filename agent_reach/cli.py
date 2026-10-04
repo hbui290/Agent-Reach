@@ -2247,6 +2247,18 @@ def _github_auth_headers(config):
     return {"Authorization": f"Bearer {token}"}
 
 
+def _github_headers_or_none():
+    """Auth headers from the saved config; an unreadable config means anonymous."""
+    import yaml
+
+    from agent_reach.config import Config, ConfigError
+
+    try:
+        return _github_auth_headers(Config(read_only=True))
+    except (ConfigError, yaml.YAMLError, OSError, UnicodeError):
+        return None
+
+
 def _github_get_with_retry(url, timeout=10, retries=3, sleeper=time.sleep, headers=None):
     """GET GitHub API with retry/backoff and basic error classification.
 
@@ -2258,13 +2270,22 @@ def _github_get_with_retry(url, timeout=10, retries=3, sleeper=time.sleep, heade
     if headers and not url.startswith(_GITHUB_API_PREFIX):
         raise ValueError("refusing to send GitHub credentials to a non-GitHub-API URL")
 
-    for attempt in range(1, retries + 1):
+    attempt = 0
+    while attempt < retries:
+        attempt += 1
         try:
             resp = requests.get(url, timeout=timeout, headers=headers)
         except requests.exceptions.RequestException as exc:
             if attempt >= retries:
                 return None, _classify_update_error(exc), attempt
             sleeper(2 ** (attempt - 1))
+            continue
+
+        if resp.status_code == 401 and headers:
+            # Saved token is invalid/revoked: public endpoints still work anonymously.
+            print("[!] github_token 无效，已改用匿名请求", file=sys.stderr)
+            headers = None
+            attempt -= 1
             continue
 
         err_kind = _classify_github_response_error(resp)
@@ -2326,10 +2347,9 @@ def _is_newer_version(remote: str, local: str) -> bool:
 def _cmd_check_update():
     """Check for newer versions on GitHub."""
     from agent_reach import __version__
-    from agent_reach.config import Config
 
     print(f"当前版本: v{__version__}")
-    headers = _github_auth_headers(Config(read_only=True))
+    headers = _github_headers_or_none()
     release_url = "https://api.github.com/repos/Panniantong/Agent-Reach/releases/latest"
     commit_url = "https://api.github.com/repos/Panniantong/Agent-Reach/commits/main"
 

@@ -565,6 +565,66 @@ class TestCheckUpdateRetry:
 
         assert mock_get.call_args.kwargs["headers"] is None
 
+    @pytest.mark.parametrize("content", ["- not\n- a mapping\n", "key: [unclosed\n"])
+    def test_check_update_ignores_unreadable_config(self, monkeypatch, content):
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        Config().set("github_token", "tok-123")
+        Config.CONFIG_FILE.write_text(content, encoding="utf-8")
+
+        class R:
+            status_code = 200
+            headers = {}
+
+            @staticmethod
+            def json():
+                return {"tag_name": "v0.0.1", "body": ""}
+
+        with patch("requests.get", return_value=R()) as mock_get:
+            assert cli._cmd_check_update() == "up_to_date"
+
+        assert mock_get.call_args.kwargs["headers"] is None
+
+    def test_rejected_github_token_retries_anonymously(self, capsys):
+        class R:
+            def __init__(self, status):
+                self.status_code = status
+                self.headers = {}
+
+            @staticmethod
+            def json():
+                return {}
+
+        with patch("requests.get", side_effect=[R(401), R(200)]) as mock_get:
+            resp, err, attempts = cli._github_get_with_retry(
+                "https://api.github.com/test", retries=1, headers={"Authorization": "Bearer t"}
+            )
+
+        assert err is None
+        assert resp.status_code == 200
+        assert attempts == 1
+        assert mock_get.call_count == 2
+        assert mock_get.call_args_list[0].kwargs["headers"] == {"Authorization": "Bearer t"}
+        assert mock_get.call_args_list[1].kwargs["headers"] is None
+        captured = capsys.readouterr()
+        assert "github_token 无效，已改用匿名请求" in captured.err
+        assert "Bearer" not in captured.out + captured.err
+
+    def test_anonymous_401_is_not_retried(self):
+        class R:
+            status_code = 401
+            headers = {}
+
+            @staticmethod
+            def json():
+                return {}
+
+        with patch("requests.get", return_value=R()) as mock_get:
+            resp, err, _attempts = cli._github_get_with_retry("https://api.github.com/test")
+
+        assert err is None
+        assert resp.status_code == 401
+        assert mock_get.call_count == 1
+
     def test_watch_sends_configured_github_token(self, monkeypatch):
         monkeypatch.delenv("GITHUB_TOKEN", raising=False)
         Config().set("github_token", "tok-456")
