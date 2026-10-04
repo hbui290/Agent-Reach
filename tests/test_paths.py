@@ -81,6 +81,7 @@ def test_posix_ytdlp_fix_is_single_line_executable_and_idempotent(
 ):
     monkeypatch.setattr(paths.sys, "platform", "linux")
     monkeypatch.setattr(paths.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.delenv("XDG_CONFIG_HOME")
 
     command = paths.render_ytdlp_fix_command()
@@ -107,3 +108,12 @@ def test_ytdlp_config_dir_matches_upstream_first_user_location(
     expected = Path(next(get_user_config_dirs("yt-dlp")))
 
     assert paths.get_ytdlp_config_dir() == expected
+
+
+def test_ytdlp_config_dir_honors_explicit_home(monkeypatch, tmp_path):
+    """yt-dlp's compat_expanduser honors HOME even on Windows."""
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: Path("/elsewhere")))
+
+    assert paths.get_ytdlp_config_dir() == tmp_path / ".config" / "yt-dlp"

@@ -430,7 +430,7 @@ After installation, use upstream tools directly. See SKILL.md for the full comma
 | Reddit | `opencli`（备选 `rdt`） | `opencli reddit search "query" -f yaml` / `rdt read POST_ID` |
 | Facebook | `opencli` | `opencli facebook search "query" -f yaml` |
 | Instagram | `opencli` | `opencli instagram user nasa -f yaml` |
-| GitHub | `gh` | `gh search repos "query"` |
+| GitHub | `gh` | `gh search repos KEYWORD1 KEYWORD2` |
 | Web | `curl` + Jina | `curl -s "https://r.jina.ai/URL"` |
 | Tavily Search | REST API | `TAVILY_API_KEY` + `curl https://api.tavily.com/search` |
 | Exa Search (fallback) | `mcporter` | `mcporter call exa.web_search_exa query=... numResults=5` |

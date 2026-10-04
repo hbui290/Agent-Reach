@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 
 from agent_reach import __version__
 
@@ -53,6 +54,10 @@ def _ensure_utf8_console():
             sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
         if hasattr(sys.stderr, "buffer"):
             sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+        # Piped JSON (e.g. `... | agent-reach format xhs`) is UTF-8, not the ANSI code page.
+        stdin = sys.stdin
+        if stdin is not None and hasattr(stdin, "buffer") and not stdin.isatty():
+            sys.stdin = io.TextIOWrapper(stdin.buffer, encoding="utf-8", errors="replace")
     except Exception:
         # Do not crash CLI just because encoding patch failed.
         pass
@@ -601,10 +606,8 @@ def _install_skill(force: bool = True):
     return installed
 
 
-def _uninstall_skill():
-    """Remove SKILL.md from all known agent skill directories."""
-    import shutil
-
+def _skill_uninstall_targets():
+    """Return (path, platform) for every location _install_skill may write."""
     skill_dirs = [
         ("~/.config/opencode/skills/agent-reach", "OpenCode"),
         ("~/.openclaw/skills/agent-reach", "OpenClaw"),
@@ -619,23 +622,43 @@ def _uninstall_skill():
             0,
             (os.path.join(openclaw_home, ".openclaw", "skills", "agent-reach"), "OpenClaw"),
         )
+    return [(os.path.expanduser(path), name) for path, name in skill_dirs]
 
+
+def _skill_present(skill_path):
+    """True for a skill directory or any symlink, including a dangling one."""
+    return os.path.isdir(skill_path) or os.path.islink(skill_path)
+
+
+def _remove_skill_path(skill_path):
+    import shutil
+
+    if os.path.islink(skill_path):
+        os.unlink(skill_path)
+    else:
+        shutil.rmtree(skill_path)
+
+
+def _uninstall_skill():
+    """Remove the skill from all known agent skill directories.
+
+    Returns False when an installed copy could not be removed.
+    """
     removed = False
-    for skill_path_template, platform_name in skill_dirs:
-        skill_path = os.path.expanduser(skill_path_template)
-        if os.path.isdir(skill_path):
+    ok = True
+    for skill_path, platform_name in _skill_uninstall_targets():
+        if _skill_present(skill_path):
             try:
-                if os.path.islink(skill_path):
-                    os.unlink(skill_path)
-                else:
-                    shutil.rmtree(skill_path)
+                _remove_skill_path(skill_path)
                 print(f"  Removed {platform_name} skill: {skill_path}")
                 removed = True
             except Exception as e:
                 print(f"  Could not remove {skill_path}: {e}")
+                ok = False
 
-    if not removed:
+    if not removed and ok:
         print("  No skill installations found.")
+    return ok
 
 
 def _cmd_skill(args):
@@ -644,7 +667,8 @@ def _cmd_skill(args):
         if not _install_skill():
             raise SystemExit(1)
     elif args.uninstall:
-        _uninstall_skill()
+        if not _uninstall_skill():
+            raise SystemExit(1)
 
 
 def _cmd_format(args):
@@ -1636,10 +1660,37 @@ def _cmd_transcribe(args):
         sys.exit(1)
 
     if args.output:
-        Path(args.output).write_text(text + "\n", encoding="utf-8")
+        try:
+            _write_text_atomic(Path(args.output), text + "\n")
+        except OSError as e:
+            # The transcript cost API quota: never lose it on a write failure.
+            print(f"❌ Could not write {args.output}: {e}", file=sys.stderr)
+            print(text)
+            sys.exit(1)
         print(f"✅ Transcript written to {args.output}")
     else:
         print(text)
+
+
+def _write_text_atomic(target: Path, text: str) -> None:
+    """Replace target only after the new content is fully on disk."""
+    import tempfile
+
+    fd, tmp = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=target.parent or None
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, target)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _parse_twitter_cookie_input(value: str):
@@ -1920,6 +1971,7 @@ def _cmd_uninstall(args):
         print()
 
     removed_any = False
+    cleanup_failed = False
     mcporter_cleanup_skipped = False
 
     # ── 1. Config directory (~/.agent-reach/) ──
@@ -1936,6 +1988,7 @@ def _cmd_uninstall(args):
                     removed_any = True
                 except Exception as e:
                     print(f"  Could not remove {config_dir}: {e}")
+                    cleanup_failed = True
         else:
             print(f"  Config directory not found (already clean): {config_dir}")
     else:
@@ -1958,28 +2011,18 @@ def _cmd_uninstall(args):
         print("      若确认不再被 xfetch/bird 使用，请手动删除。")
 
     # ── 2. Skill files ──
-    skill_dirs = [
-        ("~/.config/opencode/skills/agent-reach", "OpenCode"),
-        ("~/.openclaw/skills/agent-reach", "OpenClaw"),
-        ("~/.claude/skills/agent-reach", "Claude Code"),
-        ("~/.agents/skills/agent-reach", "Agent"),
-    ]
-
-    for skill_path_template, platform_name in skill_dirs:
-        skill_path = os.path.expanduser(skill_path_template)
-        if os.path.isdir(skill_path):
+    for skill_path, platform_name in _skill_uninstall_targets():
+        if _skill_present(skill_path):
             if dry_run:
                 print(f"[dry-run] Would remove {platform_name} skill: {skill_path}")
             else:
                 try:
-                    if os.path.islink(skill_path):
-                        os.unlink(skill_path)
-                    else:
-                        shutil.rmtree(skill_path)
+                    _remove_skill_path(skill_path)
                     print(f"  Removed {platform_name} skill: {skill_path}")
                     removed_any = True
                 except Exception as e:
                     print(f"  Could not remove {skill_path}: {e}")
+                    cleanup_failed = True
 
     # ── 3. mcporter MCP entries ──
     mcporter_cmd = shutil.which("mcporter")
@@ -2046,6 +2089,11 @@ def _cmd_uninstall(args):
     print("  npm uninstall -g mcporter")
     print("  pipx uninstall twitter-cli")
     print("  npm uninstall -g undici")
+
+    if cleanup_failed:
+        print()
+        print("[X] Cleanup incomplete: some paths above could not be removed.")
+        raise SystemExit(1)
 
 
 def _cmd_doctor(args=None):
@@ -2460,6 +2508,10 @@ def _cmd_watch():
             update_available = True
             new_version = latest
             release_body = data.get("body", "")
+    elif err:
+        issues.append(f"[!] 无法检查更新：{_update_error_text(err)}")
+    elif resp is not None and resp.status_code != 200:
+        issues.append(f"[!] 无法检查更新：GitHub 返回 HTTP {resp.status_code}")
 
     # Output
     if not issues and not update_available:

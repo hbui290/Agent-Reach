@@ -3,6 +3,7 @@
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -218,6 +219,36 @@ def test_transcribe_script_uses_secure_temp_and_bounded_curl_calls():
     assert page_limit <= 10 * 1024 * 1024
     assert 25 * 1024 * 1024 <= audio_limit <= 2 * 1024 * 1024 * 1024
     assert api_response_limit <= 32 * 1024 * 1024
+
+
+def test_transcribe_script_skips_store_python_stub(tmp_path, bash_executable):
+    """A python3 that exists but cannot run (Windows Store stub) is skipped."""
+    env, curl_log, temp_root, bash_env = _script_env(
+        tmp_path,
+        "#!/bin/sh\nprintf 'called\\n' >> \"$CURL_LOG\"\nexit 42\n",
+    )
+    real_python = sys.executable.replace("\\", "/")
+    _append_bash_function(bash_env, "python3", "#!/bin/sh\nreturn 9009\n")
+    _append_bash_function(bash_env, "python", f'#!/bin/sh\n"{real_python}" "$@"\n')
+
+    result = subprocess.run(
+        [
+            bash_executable,
+            TRANSCRIBE_SCRIPT.relative_to(ROOT).as_posix(),
+            "https://www.xiaoyuzhoufm.com/episode/123",
+            _bash_path(tmp_path / "out.txt"),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        cwd=ROOT,
+    )
+
+    assert "未找到 Python" not in result.stderr
+    assert "仅支持 xiaoyuzhoufm.com" not in result.stderr
+    assert curl_log.exists()
+    _assert_work_dir_cleaned(temp_root)
 
 
 @pytest.mark.parametrize("stored", ["gsk_plain", "'gsk_quoted'"])

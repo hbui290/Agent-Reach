@@ -705,3 +705,31 @@ class TestWatchVersionCompare:
         out = capsys.readouterr().out
         assert "新版本可用" not in out
         assert "全部正常" in out
+
+
+def test_watch_does_not_claim_latest_when_update_check_fails(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_github_get_with_retry", lambda *a, **k: (None, "timeout", 2))
+    monkeypatch.setattr(
+        "agent_reach.doctor.check_all",
+        lambda config: {"web": {"status": "ok", "name": "任意网页", "message": "ok",
+                        "tier": 0, "backends": ["Jina Reader"], "active_backend": "Jina Reader"}},
+    )
+    cli._cmd_watch()
+    out = capsys.readouterr().out
+    assert "已是最新" not in out
+    assert "无法检查更新：网络超时" in out
+
+
+def test_windows_console_setup_reads_piped_stdin_as_utf8(monkeypatch):
+    import io
+
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(cli.sys, "stdout", io.TextIOWrapper(io.BytesIO(), encoding="cp1252"))
+    monkeypatch.setattr(cli.sys, "stderr", io.TextIOWrapper(io.BytesIO(), encoding="cp1252"))
+    piped = io.TextIOWrapper(io.BytesIO("中文标题".encode("utf-8")), encoding="cp1252")
+    monkeypatch.setattr(cli.sys, "stdin", piped)
+
+    cli._ensure_utf8_console()
+
+    assert cli.sys.stdin.read() == "中文标题"

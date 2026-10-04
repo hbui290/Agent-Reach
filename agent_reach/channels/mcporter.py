@@ -116,6 +116,51 @@ def _select_config_layers(
     return layers
 
 
+def _scan_jsonc(text: str, *, drop_comments: bool) -> str:
+    """String-aware pass that drops comments, or trailing commas."""
+    out: list[str] = []
+    i, n = 0, len(text)
+    in_string = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if ch == "\\" and i + 1 < n:
+                out.append(text[i + 1])
+                i += 2
+                continue
+            if ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+        elif drop_comments and text.startswith("//", i):
+            end = text.find("\n", i)
+            i = n if end == -1 else end
+            continue
+        elif drop_comments and text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            i = n if end == -1 else end + 2
+            continue
+        elif not drop_comments and ch == ",":
+            rest = text[i + 1:].lstrip(" \t\r\n")
+            if rest[:1] in ("}", "]"):
+                i += 1
+                continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _strip_jsonc(text: str) -> str:
+    """Drop // and /* */ comments and trailing commas outside JSON strings.
+
+    mcporter documents ``mcporter.jsonc``; plain JSON passes through unchanged.
+    """
+    return _scan_jsonc(_scan_jsonc(text, drop_comments=True), drop_comments=False)
+
+
 def _read_config_object(config_path: Path) -> dict:
     try:
         raw = read_small_text_no_follow(
@@ -131,7 +176,7 @@ def _read_config_object(config_path: Path) -> dict:
     if raw is None:
         raise McporterConfigError("mcporter 配置文件不存在")
     try:
-        payload = json.loads(raw)
+        payload = json.loads(_strip_jsonc(raw))
     except json.JSONDecodeError as exc:
         raise McporterConfigError("mcporter 配置不是有效的 UTF-8 JSON") from exc
     if not isinstance(payload, dict):

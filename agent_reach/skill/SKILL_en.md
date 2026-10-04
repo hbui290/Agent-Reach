@@ -142,7 +142,7 @@ mcporter call exa.web_search_exa query=query numResults=5 "objective=Find releva
 curl -s "https://r.jina.ai/URL"
 
 # GitHub search
-gh search repos "query" --sort stars --limit 10
+gh search repos KEYWORD1 KEYWORD2 --sort stars --limit 10   # do not quote the whole query: quotes = exact phrase, often 0 results
 
 # YouTube subtitles (never use yt-dlp for Bilibili; retry chain in video.md)
 yt-dlp --write-sub --write-auto-sub --sub-langs ".*-orig,en" --skip-download -o "/tmp/%(id)s" "URL"

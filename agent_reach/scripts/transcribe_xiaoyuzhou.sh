@@ -32,11 +32,13 @@ ensure_python() {
     if [ "${#PYTHON_CMD[@]}" -gt 0 ]; then
         return 0
     fi
-    if command -v python3 >/dev/null 2>&1; then
+    # Actually run each candidate: Windows ships Microsoft Store stubs named
+    # python3/python that exist on PATH but only print an install prompt.
+    if command -v python3 >/dev/null 2>&1 && python3 -c "" >/dev/null 2>&1; then
         PYTHON_CMD=(python3)
-    elif command -v python >/dev/null 2>&1; then
+    elif command -v python >/dev/null 2>&1 && python -c "" >/dev/null 2>&1; then
         PYTHON_CMD=(python)
-    elif command -v py >/dev/null 2>&1; then
+    elif command -v py >/dev/null 2>&1 && py -3 -c "" >/dev/null 2>&1; then
         PYTHON_CMD=(py -3)
     else
         echo "❌ 未找到 Python（尝试过 python3、python、py -3）" >&2
@@ -164,7 +166,7 @@ echo "📦 文件大小: $FILE_SIZE"
 
 # Step 3: 获取时长
 if ! DURATION_RAW=$(ffprobe -v quiet -show_entries format=duration -of csv=p=0 \
-    "$WORK_DIR/original.$EXT" 2>/dev/null); then
+    "$WORK_DIR/original.$EXT" </dev/null 2>/dev/null); then
     echo "❌ ffprobe 无法读取音频时长" >&2
     exit 1
 fi
@@ -201,7 +203,7 @@ echo "⏱️  时长: ${DURATION_MIN}分${DURATION_SEC}秒"
 
 # Step 4: 转为低码率单声道 MP3
 echo "🔄 正在转码..."
-ffmpeg -y -i "$WORK_DIR/original.$EXT" -t "$MAX_DURATION_SECONDS" -b:a "$AUDIO_BITRATE" -ac 1 "$WORK_DIR/mono.mp3" 2>/dev/null
+ffmpeg -nostdin -y -i "$WORK_DIR/original.$EXT" -t "$MAX_DURATION_SECONDS" -b:a "$AUDIO_BITRATE" -ac 1 "$WORK_DIR/mono.mp3" 2>/dev/null
 MONO_SIZE=$(stat -c%s "$WORK_DIR/mono.mp3" 2>/dev/null || stat -f%z "$WORK_DIR/mono.mp3")
 MONO_SIZE_MB=$(awk -v bytes="$MONO_SIZE" 'BEGIN { printf "%.1f", bytes / 1024 / 1024 }')
 echo "📦 转码后: ${MONO_SIZE_MB}MB"
@@ -222,7 +224,7 @@ else
     
     for i in $(seq 0 $((NUM_CHUNKS - 1))); do
         START=$((i * CHUNK_DURATION))
-        ffmpeg -y -i "$WORK_DIR/mono.mp3" -ss "$START" -t "$CHUNK_DURATION" -c copy "$WORK_DIR/chunk_${i}.mp3" 2>/dev/null
+        ffmpeg -nostdin -y -i "$WORK_DIR/mono.mp3" -ss "$START" -t "$CHUNK_DURATION" -c copy "$WORK_DIR/chunk_${i}.mp3" 2>/dev/null
         CHUNK_SIZE=$(ls -lh "$WORK_DIR/chunk_${i}.mp3" | awk '{print $5}')
         echo "   段 $((i+1))/$NUM_CHUNKS: $CHUNK_SIZE"
     done
@@ -403,6 +405,7 @@ if [ -z "$OUTPUT" ]; then
     fi
 fi
 
+FINAL="$WORK_DIR/final.txt"
 {
     echo "# $TITLE"
     echo ""
@@ -424,7 +427,16 @@ fi
         fi
         echo ""
     done
-} > "$OUTPUT"
+} > "$FINAL"
+
+# 先完整写到同目录临时文件再替换：写入失败时不截断旧文件，也不丢掉已转录内容
+PARTIAL="$OUTPUT.partial.$$"
+if ! cat "$FINAL" > "$PARTIAL" || ! mv -f "$PARTIAL" "$OUTPUT"; then
+    rm -f "$PARTIAL"
+    echo "❌ 无法写入 ${OUTPUT}，文字稿输出如下：" >&2
+    cat "$FINAL"
+    exit 1
+fi
 
 TOTAL_CHARS=$(wc -m < "$OUTPUT")
 echo ""

@@ -366,6 +366,7 @@ def test_ytdlp_config_write_refuses_target_symlink(
         "home",
         classmethod(lambda cls: tmp_path),
     )
+    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.delenv("XDG_CONFIG_HOME")
     config_path = tmp_path / ".config" / "yt-dlp" / "config"
     config_path.parent.mkdir(parents=True)
@@ -430,6 +431,33 @@ def test_transcribe_cli_scrubs_credentials_from_errors(
     assert "alice:super-secret" not in output
     assert "hidden-token" not in output
     assert "***" in output
+
+
+def test_transcribe_cli_keeps_old_file_and_prints_text_when_write_fails(
+    monkeypatch, capsys, tmp_path
+):
+    import agent_reach.transcribe as transcribe_module
+
+    monkeypatch.setattr(transcribe_module, "transcribe", lambda *_a, **_k: "NEW TEXT")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    target = out_dir / "out.txt"
+    target.write_text("OLD TEXT\n", encoding="utf-8")
+
+    def fail_replace(*_args, **_kwargs):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(cli.os, "replace", fail_replace)
+
+    with pytest.raises(SystemExit) as exc:
+        cli._cmd_transcribe(
+            Namespace(source="https://example.test/a.mp3", provider="auto", output=str(target))
+        )
+
+    assert exc.value.code == 1
+    assert target.read_text(encoding="utf-8") == "OLD TEXT\n"
+    assert "NEW TEXT" in capsys.readouterr().out
+    assert [p.name for p in out_dir.iterdir()] == ["out.txt"]
 
 
 def test_safe_install_with_proxy_makes_no_persistent_writes(
