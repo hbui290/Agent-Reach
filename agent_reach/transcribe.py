@@ -348,6 +348,9 @@ def chunk_audio(src: Path, out_dir: Path, segment_seconds: int = CHUNK_SECONDS) 
             f"segment duration {segment_seconds}s could create "
             f"{possible_chunks} chunks"
         )
+    # A reused out_dir may hold chunks from a longer earlier file.
+    for stale in out_dir.glob("chunk_*.m4a"):
+        stale.unlink()
     _require("ffmpeg")
     pattern = out_dir / "chunk_%03d.m4a"
     _run(
@@ -382,7 +385,8 @@ def chunk_audio(src: Path, out_dir: Path, segment_seconds: int = CHUNK_SECONDS) 
 def _provider_key(provider: str, config: Config) -> Optional[str]:
     field = PROVIDERS[provider]["key_field"]
     val = config.get(field)
-    return val or None
+    # A trailing CR/space from a pasted key or Windows .env breaks the header.
+    return str(val).strip() or None if val else None
 
 
 def transcribe_chunk(
@@ -413,12 +417,16 @@ def transcribe_chunk(
                 data={"model": info["model"], "response_format": "text"},
                 timeout=timeout,
             )
+        except requests.exceptions.InvalidHeader:
+            # The exception text echoes the Authorization header: never show it.
+            raise TranscribeError(f"{provider}: invalid API key format") from None
         except requests.RequestException as e:
             raise TranscribeError(f"{provider}: network error: {e}") from e
 
     if not resp.ok:
         raise TranscribeError(f"{provider}: HTTP {resp.status_code}: {resp.text[:300]}")
-    return resp.text
+    # The APIs answer UTF-8; requests would guess ISO-8859-1 for a bare text/plain.
+    return resp.content.decode("utf-8", errors="replace")
 
 
 def _provider_order(provider: str) -> List[str]:
@@ -469,12 +477,30 @@ def transcribe(
         return _transcribe_in_dir(source, order, cfg, Path(tmp))
 
 
+_MEDIA_SUFFIXES = {
+    ".aac", ".flac", ".m4a", ".mkv", ".mov", ".mp3", ".mp4", ".ogg", ".opus", ".wav", ".webm",
+}
+
+
+def _looks_like_local_path(source: str) -> bool:
+    """A mistyped local path, not a scheme-less URL like youtu.be/ID."""
+    if "://" in source:
+        return False
+    if source.startswith(("/", ".", "~", "\\")) or "\\" in source:
+        return True
+    if len(source) > 2 and source[0].isalpha() and source[1] == ":" and source[2] in "/\\":
+        return True
+    return "/" not in source and Path(source).suffix.lower() in _MEDIA_SUFFIXES
+
+
 def _transcribe_in_dir(source: str, order: List[str], cfg: Config, work_dir: Path) -> str:
     work_dir.mkdir(parents=True, exist_ok=True)
 
     src_path = Path(source)
     if src_path.is_file():
         audio = src_path
+    elif _looks_like_local_path(source):
+        raise TranscribeError(f"local file not found: {source}")
     else:
         audio = download_audio(source, work_dir, config=cfg)
 

@@ -95,8 +95,9 @@ def test_mcp_status_exception_credentials_are_scrubbed(monkeypatch):
     monkeypatch.setattr(mcp_server, "AgentReach", _ExplodingAgentReach)
 
     server = mcp_server.create_server()
-    result = asyncio.run(server.call_tool_handler("get_status", {}))
-    text = result[0].text
+    with pytest.raises(RuntimeError) as exc:
+        asyncio.run(server.call_tool_handler("get_status", {}))
+    text = str(exc.value)
 
     assert "alice" not in text
     assert "password" not in text
@@ -135,8 +136,8 @@ def test_mcp_status_keeps_event_loop_responsive(monkeypatch):
             assert not finished.is_set(), "doctor blocked the event loop"
             tools = await server.list_tools_handler()
             assert [tool.name for tool in tools] == ["get_status"]
-            unknown = await server.call_tool_handler("unknown", {})
-            assert unknown[0].text == "Unknown tool: unknown"
+            with pytest.raises(ValueError, match="Unknown tool: unknown"):
+                await server.call_tool_handler("unknown", {})
         finally:
             release.set()
             result = await task
@@ -207,3 +208,12 @@ def test_mcp_install_hint_extra_exists_in_pyproject():
     # mcp 2.x removed the low-level Server decorators/list_tools API used here.
     assert extras["mcp"] == ["mcp[cli]>=1.0,<2"]
     assert "mcp[cli]>=1.0,<2" in extras["all"]
+
+
+def test_mcp_status_returns_plain_text_not_rich_markup(monkeypatch):
+    _install_fake_mcp(monkeypatch)
+    server = _status_server(
+        monkeypatch, lambda: "[bold cyan]Agent Reach 状态[/bold cyan]\n[yellow][!][/yellow] x"
+    )
+    result = asyncio.run(server.call_tool_handler("get_status", {}))
+    assert result[0].text == "Agent Reach 状态\n[!] x"

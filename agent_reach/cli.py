@@ -2145,6 +2145,15 @@ def _cmd_doctor(args=None):
         rich_print(report)
 
 
+def _setup_prompt(getpass, label):
+    """Hidden prompt that treats closed stdin (EOF) as "skip"."""
+    try:
+        return getpass.getpass(label).strip()
+    except EOFError:
+        print()
+        return ""
+
+
 def _cmd_setup():
     import getpass
 
@@ -2225,7 +2234,7 @@ def _cmd_setup():
     if current:
         print("  当前状态: ✅ 已配置")
     else:
-        key = getpass.getpass("  GITHUB_TOKEN (回车跳过): ").strip()
+        key = _setup_prompt(getpass, "  GITHUB_TOKEN (回车跳过): ")
         if key:
             config.set("github_token", key)
             print("  ✅ GitHub API 已提升至 5000 次/小时！")
@@ -2246,7 +2255,7 @@ def _cmd_setup():
     if current:
         print("  当前状态: ✅ 已配置")
     else:
-        key = getpass.getpass("  GROQ_API_KEY (回车跳过): ").strip()
+        key = _setup_prompt(getpass, "  GROQ_API_KEY (回车跳过): ")
         if key:
             config.set("groq_api_key", key)
             print("  ✅ 语音转文字已开启！")
@@ -2327,7 +2336,9 @@ def _github_auth_headers(config):
     """Authorization header from the optional ``github_token`` config value."""
     token = config.get("github_token")
     token = str(token).strip() if token else ""
-    if not token:
+    # HTTP headers are latin-1; a pasted token with stray unicode (zero-width
+    # space, smart quotes) is invalid anyway — fall back to anonymous.
+    if not token or not token.isascii():
         return None
     return {"Authorization": f"Bearer {token}"}
 
@@ -2418,16 +2429,26 @@ def _is_newer_version(remote: str, local: str) -> bool:
     AHEAD of the latest release (e.g. installed from main during a release
     window) — and walk them into a downgrade.
     """
+    import re
+
     def parse(v):
-        try:
-            return tuple(int(x) for x in v.strip().split("."))
-        except ValueError:
+        match = re.match(r"\s*(\d+(?:\.\d+)*)(.*)$", v)
+        if not match:
             return None
+        return [int(x) for x in match.group(1).split(".")], match.group(2).strip()
 
     remote_version, local_version = parse(remote), parse(local)
     if remote_version is None or local_version is None:
         return remote != local  # unparseable — fall back to old behavior
-    return remote_version > local_version
+    (remote_nums, remote_suffix), (local_nums, local_suffix) = remote_version, local_version
+    width = max(len(remote_nums), len(local_nums))
+    remote_nums += [0] * (width - len(remote_nums))
+    local_nums += [0] * (width - len(local_nums))
+    if remote_nums != local_nums:
+        return remote_nums > local_nums
+    # Same numbers: only a final release beats a local pre-release/dev build
+    # (1.5.0 > 1.5.0-dev); 1.5.0-rc1 or 1.4.0-hotfix never prompt a downgrade.
+    return bool(local_suffix) and not remote_suffix
 
 
 def _json_object(resp):
@@ -2563,6 +2584,8 @@ def _cmd_watch():
         issues.append(f"[!] 无法检查更新：{_update_error_text(err)}")
     elif resp is not None and resp.status_code != 200:
         issues.append(f"[!] 无法检查更新：GitHub 返回 HTTP {resp.status_code}")
+    elif resp is not None:
+        issues.append("[!] 无法检查更新：GitHub 返回了无法解析的响应")
 
     # Output
     if not issues and not update_available:

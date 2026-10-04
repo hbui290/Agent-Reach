@@ -142,3 +142,144 @@ def test_skill_install_reports_unusable_agents_dir(isolated_home, capsys):
 
     assert cli._install_skill() is False
     assert "Could not create" in capsys.readouterr().out
+
+
+# ── round 3: transcribe, remaining CLI, OpenCLI, MCP ──
+
+
+def test_watch_flags_unparseable_update_response(capsys):
+    from agent_reach.config import Config as _Config
+
+    resp = SimpleNamespace(status_code=200)
+    resp.json = lambda: (_ for _ in ()).throw(ValueError("html"))
+    ok = {"web": {"status": "ok", "name": "Web", "message": "", "tier": 0}}
+    with patch("agent_reach.doctor.check_all", return_value=ok), patch.object(
+        cli, "_github_get_with_retry", return_value=(resp, None, 1)
+    ), patch.object(_Config, "get", return_value=None):
+        cli._cmd_watch()
+    out = capsys.readouterr().out
+    assert "无法检查更新" in out
+    assert "已是最新" not in out
+
+
+@pytest.mark.parametrize(
+    "remote, local, newer",
+    [
+        ("1.5.0-rc1", "1.5.0", False),
+        ("1.4.0-hotfix", "1.5.0", False),
+        ("1.10.0", "1.9.0", True),
+        ("1.6.0-rc1", "1.5.0", True),
+        ("1.5", "1.5.0", False),
+    ],
+)
+def test_version_compare_handles_suffixes(remote, local, newer):
+    assert cli._is_newer_version(remote, local) is newer
+
+
+def test_non_ascii_github_token_falls_back_to_anonymous():
+    config = SimpleNamespace(get=lambda key: "ghp_tök\u200b")
+    assert cli._github_auth_headers(config) is None
+
+
+def test_setup_prompt_treats_eof_as_skip():
+    getpass = SimpleNamespace(getpass=lambda _label: (_ for _ in ()).throw(EOFError()))
+    assert cli._setup_prompt(getpass, "KEY: ") == ""
+
+
+@pytest.mark.parametrize("item", [{"note_card": "x"}, {"note": ["a"]}])
+def test_format_xhs_tolerates_odd_nesting(item):
+    from agent_reach.channels.xiaohongshu import _clean_note
+
+    assert isinstance(_clean_note(item), dict)
+
+
+def test_transcribe_invalid_key_is_not_echoed(tmp_path, monkeypatch):
+    from agent_reach import transcribe as tr
+
+    cfg = Config(config_path=tmp_path / "c.yaml")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_SUPER\nSECRET")
+    chunk = tmp_path / "chunk.m4a"
+    chunk.write_bytes(b"x")
+    with pytest.raises(tr.TranscribeError) as exc:
+        tr.transcribe_chunk(chunk, "groq", config=cfg)
+    assert "SECRET" not in str(exc.value)
+
+
+def test_transcribe_key_whitespace_is_stripped(tmp_path, monkeypatch):
+    from agent_reach import transcribe as tr
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_abc\r\n")
+    assert tr._provider_key("groq", Config(config_path=tmp_path / "c.yaml")) == "gsk_abc"
+
+
+def test_transcribe_decodes_utf8_without_charset(tmp_path, monkeypatch):
+    from agent_reach import transcribe as tr
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_abc")
+    body = "Xin chào thế giới 你好"
+    resp = SimpleNamespace(
+        ok=True, status_code=200, content=body.encode("utf-8"),
+        text=body.encode("utf-8").decode("latin-1"),
+    )
+    monkeypatch.setattr(tr.requests, "post", lambda *a, **k: resp)
+    chunk = tmp_path / "chunk.m4a"
+    chunk.write_bytes(b"x")
+    assert tr.transcribe_chunk(chunk, "groq", config=Config(config_path=tmp_path / "c.yaml")) == body
+
+
+def test_chunk_audio_ignores_chunks_from_an_earlier_run(tmp_path, monkeypatch):
+    from agent_reach import transcribe as tr
+
+    (tmp_path / "chunk_002.m4a").write_bytes(b"stale")
+
+    def fake_run(cmd, *args, **kwargs):
+        for i in range(2):
+            (tmp_path / f"chunk_{i:03d}.m4a").write_bytes(b"new")
+
+    monkeypatch.setattr(tr, "_require", lambda _name: None)
+    monkeypatch.setattr(tr, "_run", fake_run)
+    chunks = tr.chunk_audio(tmp_path / "src.m4a", tmp_path)
+    assert [c.name for c in chunks] == ["chunk_000.m4a", "chunk_001.m4a"]
+
+
+@pytest.mark.parametrize(
+    "source", ["/Users/me/podcast.mp3", "C:\\Users\\me\\a.mp3", "./a.wav", "episode.mp3"]
+)
+def test_missing_local_file_is_reported_as_such(tmp_path, source):
+    from agent_reach import transcribe as tr
+
+    with pytest.raises(tr.TranscribeError, match="local file not found"):
+        tr._transcribe_in_dir(source, ["groq"], Config(config_path=tmp_path / "c.yaml"), tmp_path)
+
+
+@pytest.mark.parametrize("source", ["youtu.be/abc", "https://example.com/a.mp3"])
+def test_scheme_less_urls_are_not_mistaken_for_paths(source):
+    from agent_reach import transcribe as tr
+
+    assert tr._looks_like_local_path(source) is False
+
+
+def _opencli_probe(status, output="", hint=""):
+    from agent_reach.probe import ProbeResult
+
+    return ProbeResult(status=status, output=output, hint=hint)
+
+
+def test_opencli_version_ignores_node_warnings():
+    from agent_reach.backends import opencli
+
+    probe = _opencli_probe("ok", "1.8.8\n(node:42) ExperimentalWarning: x")
+    with patch.object(opencli, "probe_command", return_value=probe), patch.object(
+        opencli, "_fetch_daemon_status", return_value=None
+    ):
+        assert opencli.opencli_status().version == "1.8.8"
+
+
+def test_opencli_timeout_is_not_called_a_broken_node():
+    from agent_reach.backends import opencli
+
+    probe = _opencli_probe("timeout", hint="timed out after 10s")
+    with patch.object(opencli, "probe_command", return_value=probe):
+        st = opencli.opencli_status()
+    assert "node 环境损坏" not in st.hint
+    assert "timeout" in st.hint

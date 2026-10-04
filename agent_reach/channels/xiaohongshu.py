@@ -77,6 +77,8 @@ def _clean_note(note):
 
     # Some responses nest the note under "note_card" or "note"
     inner = note.get("note_card") or note.get("note") or note
+    if not isinstance(inner, dict):
+        inner = note
 
     result = {}
 
