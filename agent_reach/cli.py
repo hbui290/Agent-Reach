@@ -53,6 +53,10 @@ def _ensure_utf8_console():
             sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
         if hasattr(sys.stderr, "buffer"):
             sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+        # Piped JSON (e.g. `... | agent-reach format xhs`) is UTF-8, not the ANSI code page.
+        stdin = sys.stdin
+        if stdin is not None and hasattr(stdin, "buffer") and not stdin.isatty():
+            sys.stdin = io.TextIOWrapper(stdin.buffer, encoding="utf-8", errors="replace")
     except Exception:
         # Do not crash CLI just because encoding patch failed.
         pass
