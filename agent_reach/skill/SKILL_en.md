@@ -43,24 +43,22 @@ skill. Read only the references relevant to the request.
 3. **Preserve platform capabilities:** transcripts, comments, account-visible groups
    and market quotes require a connector or platform CLI returning those fields.
    Follow its authentication and risk constraints. Search snippets are not complete
-   comments, transcripts or authenticated content.
-4. **Recover proactively before reporting limits:** follow applicable bounded
-   retries from the reference, then try suitable installed/connected alternatives
-   after checking authorization. If new permission is needed, permission is unclear,
-   or an action exceeds the granted scope, explain the operation, risks and scope
-   and request permission first. Existing explicit authorization applies within its scope.
-   Classify errors using the platform runbook: expired authentication enters its
-   login/credential recovery flow with required permission or manual user login;
-   rate limits follow Retry-After/cooldown with bounded retries; ACCOUNT_RISK and
-   ENVIRONMENT_RISK stop that path without automatic bypass. Transient network or
-   endpoint failures use bounded reference retries. Report limits after suitable
-   paths fail or are unavailable; honor explicit backend restrictions and disclose gaps. With no retrieval tools, state that
-   live retrieval is unavailable and work only from supplied sources. The upstream
-   local runtime requires shell/exec; without it the CLI cannot run. Connected host
-   tools supply their own capabilities, not proof the repo runtime executed. If recovery requires installation,
-   upgrade, login, cookie import or connection changes, explain the needed operation
-   and risks, check applicable authorization, and request permission first when
-   authorization is missing or unclear before executing the recovery procedure.
+   comments, transcripts or authenticated content. Success means the required
+   content was returned; a version or exit code 0 is not enough.
+4. **Recover proactively before reporting limits:** on backend failure, run the
+   reference's bounded retries, then proactively switch to suitable installed/connected
+   alternatives. Handle by error type: expired auth enters login/credential recovery;
+   rate limits wait for Retry-After/cooldown, then retry a bounded number of times;
+   ACCOUNT_RISK/ENVIRONMENT_RISK stop that path and are reported without bypass;
+   transient network/endpoint errors get bounded retries.
+   **Permission boundary:** read-only diagnostics, read-only retrieval and actions within
+   existing authorization run directly. Installing, upgrading, logging in, importing
+   cookies, launching a browser or changing connections need new permission: explain the
+   operation, risks and scope, ask first, then resume the original task once approved.
+   Report limits only after suitable paths fail, naming the alternatives used and gaps;
+   honor explicit backend restrictions. Without a shell the local CLI cannot run, so never
+   claim the repo executed; connected host tools supply only their own capabilities.
+   With no retrieval tools, say live retrieval is unavailable and work from supplied sources.
 
 Use one coherent routing policy per request; another same-name skill does not
 merge capabilities automatically. ChatGPT web cannot access the user's local CLI,
@@ -69,23 +67,23 @@ Agent Reach's optional MCP exposes only get_status, not search/read tools.
 
 ## Standing rules (apply for the whole session)
 
-1. **Check health proactively:** obtain diagnostics before local multi-backend or
-   login-backed tasks; reuse fresh results covering the current task. Recheck when
-   state is uncertain or a backend fails. With a shell/CLI and authorization for the accounts/browser
-   access involved, run `agent-reach doctor --json`; interpret status, message and
-   active_backend together. `active_backend: null` can mean skipped/unverified/failed probes,
-   not necessarily absence. Some checks access the network or authorized login state;
-   Doctor is a snapshot, not a purely offline check. Without shell/CLI, skip local
-   Doctor and use host tools without guessing local state. Require the target
-   content from a read-only call; a version or exit code alone is insufficient.
+1. **Check health proactively:** before local multi-backend or login-backed platforms
+   (XiaoHongShu/Reddit/Bilibili/Twitter/Facebook/Instagram/Boss Zhipin), run
+   `agent-reach doctor --json`; it is a read-only diagnostic and needs no separate
+   permission request. Reuse fresh results covering the current task; rerun when state
+   is uncertain or a backend fails. Interpret status, message and active_backend together.
+   `active_backend: null` can mean Doctor skipped live verification to avoid browser-cookie
+   reads or remote writes; it does not mean the backend is absent. Doctor is a snapshot;
+   some checks access the network or read configured login state. Without shell/CLI,
+   skip it and use host tools without guessing local state.
 2. **Announce what you use**: say "using agent-reach, platform X via backend Y"
    before starting.
 3. **On failure, follow the retry chains in references/** — never guess
    commands.
 4. **Broad research:** use this source-combination recipe as a starting point when
    expanding coverage: Tavily for general web/news; Exa for academic, company/person
-   and semantic discovery (also the fallback when Tavily is unavailable); X/Reddit for community discussion; Xiaohongshu/Bilibili
-   for Chinese-language context. Choose groups relevant to the question and actually
+   and semantic discovery (also the fallback when Tavily is unavailable); X/Reddit
+   for community discussion; Xiaohongshu/Bilibili for Chinese-language context. Choose groups relevant to the question and actually
    available and authorized; this is a menu for expanding research, not a requirement
    to query every platform. Cross-check independent sources, preferably from different
    groups, when possible; independent read-only calls may run in parallel. Report what
@@ -117,8 +115,7 @@ Search follows the fork task routing; direct reads follow web/platform reference
 - Papers/academic/arXiv, companies/people/financial reports, semantic discovery,
   RAG, or similar-page discovery → Exa.
 - Tavily is the preferred external general-search backend; if unavailable, use Exa
-  or host-native search. Specialized discovery prefers Exa rather than a blanket
-  native-first rule.
+  or host-native search. Specialized discovery prefers Exa.
 - See [references/search.md](references/search.md) for commands and
   `category:<type>` query hints.
 

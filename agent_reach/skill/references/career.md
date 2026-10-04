@@ -1,9 +1,9 @@
 # 职场招聘
 
 LinkedIn、Boss直聘。可用的 host 专用连接优先用于它确实能返回的目标字段。
-本机 Doctor/CLI 仅在 Shell 与相应工具可用且账号访问已授权时使用。
-下列 login、uvx/uv 下载依赖、启动 Chrome、配置命令属于用户要求的设置/恢复流程；
-单纯查职位或读资料不授权自动执行。工具缺失时按 SKILL.md 降级并说明限制。
+本机 Doctor 只读诊断可主动运行。下列 login、uvx/uv 下载依赖、启动 Chrome、配置命令
+属于设置/恢复流程：需要时先说明操作与风险并请求许可，获准后继续原搜索。
+工具缺失时按 SKILL.md 降级并说明限制。
 
 ## LinkedIn
 
@@ -26,7 +26,7 @@ mcporter call linkedin.search_jobs "keywords=software engineer" location=Remote 
 
 ### Fallback 方案
 
-如果 MCP 不可用，公开页面可先用 host 读取；获授权发送公开 URL 时也可用 Jina。
+如果 MCP 不可用，公开页面用 Jina Reader 或 host 读取。
 只能报告实际返回的公开字段，不能把摘要/登录页当成完整 profile、职位搜索或账号数据：
 
 ```bash
@@ -69,7 +69,7 @@ curl -s "https://r.jina.ai/https://linkedin.com/in/username"
 > `4c991b77086a203173bf08a4cb64a23af6514fe6`，而不是会移动的 branch；上游发布正式版后
 > 应把安装器切回版本约束。
 
-体检（不执行岗位搜索或修改账号；可能读取本机 CDP/browser 登录状态，需适用授权）：
+体检（只读：不执行岗位搜索、不修改账号；会读取专用 Chrome 的 CDP 登录状态）：
 
 ```bash
 agent-reach doctor          # boss 行：off = 未装或 CDP 不通；warn = 链路就绪，
@@ -118,9 +118,8 @@ PY
 ### 环境体检与恢复（抓取前必查）
 
 搜索前若 `agent-reach doctor` 报 boss 为 `off` 或 `warn`，按下面 runbook 排查。
-只读诊断在已有授权内执行；需要启动 Chrome、安装、配置或登录恢复时，
-立即说明具体操作并请求缺失权限，获准后在同一任务中继续恢复及搜索。
-用户要求查职位不单独授权新设置；已有适用设置/恢复授权可复用。不要读源码瞎猜：
+只读诊断直接执行；需要启动 Chrome、安装、配置或登录恢复时，先说明具体操作并
+请求许可（已有适用授权可复用），获准后在同一任务中继续恢复及搜索。不要读源码瞎猜：
 
 1. **CDP 端口通不通**：
    ```bash
