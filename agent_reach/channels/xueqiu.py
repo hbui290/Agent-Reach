@@ -17,7 +17,7 @@ _UA = (
 )
 _REFERER = "https://xueqiu.com/"
 _TIMEOUT = 10
-_XUEQIU_HOME = "https://xueqiu.com"
+_XUEQIU_HOME = "https://xueqiu.com/hq"
 
 # --------------- cookie-aware HTTP helpers --------------- #
 
@@ -76,8 +76,10 @@ def _ensure_cookies(config=None) -> None:
 
     Priority order:
     1. Saved cookie string in ~/.agent-reach/config.yaml  (set by configure --from-browser)
-    2. Homepage visit fallback (only yields public session cookies and may not
-       be sufficient when Xueqiu requires a logged-in session)
+    2. Anonymous fallback: visit /hq, which sets the anonymous xq_a_token
+       session cookie (the homepage only sets acw_tc, which makes the quote
+       API return HTTP 400). Features that need a logged-in session still
+       require a saved cookie.
     """
     global _cookies_initialized
     if _cookies_initialized:
@@ -85,9 +87,9 @@ def _ensure_cookies(config=None) -> None:
     if _load_cookies_from_config(config):
         _cookies_initialized = True
         return
-    # Fallback: visit homepage to pick up acw_tc anti-DDoS cookie.
-    # This is not sufficient for authenticated APIs but avoids hard failures
-    # on public endpoints that only need the session cookie.
+    # Fallback: visit /hq to pick up the anonymous xq_a_token (plus acw_tc).
+    # This is not sufficient for authenticated APIs but works for public
+    # quote endpoints that only need an anonymous session token.
     req = urllib.request.Request(_XUEQIU_HOME, headers={"User-Agent": _UA})
     _opener.open(req, timeout=_TIMEOUT)
     _cookies_initialized = True
@@ -114,7 +116,7 @@ def _strip_html(text: str) -> str:
 class XueqiuChannel(Channel):
     name = "xueqiu"
     description = "雪球股票行情与社区动态"
-    backends = ["Xueqiu API (需要登录 Cookie)"]
+    backends = ["Xueqiu API（匿名 token；部分功能需登录 Cookie）"]
     tier = 1
 
     # ------------------------------------------------------------------ #
