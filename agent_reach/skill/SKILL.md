@@ -120,7 +120,7 @@ curl -s "https://r.jina.ai/URL"
 gh search repos "query" --sort stars --limit 10
 
 # YouTube 字幕（注意：B站不要用 yt-dlp，失败重试链见 video.md）
-yt-dlp --write-sub --write-auto-sub --skip-download -o "/tmp/%(id)s" "URL"
+yt-dlp --write-sub --write-auto-sub --sub-langs ".*-orig,en" --skip-download -o "/tmp/%(id)s" "URL"
 
 # V2EX 热门
 curl -s "https://www.v2ex.com/api/topics/hot.json" -H "User-Agent: agent-reach/1.0"

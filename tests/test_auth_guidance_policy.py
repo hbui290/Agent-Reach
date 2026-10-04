@@ -209,6 +209,18 @@ def test_video_reference_has_content_level_youtube_fallbacks():
     assert "agent-reach transcribe" in text
 
 
+def test_youtube_subtitle_commands_prefer_original_language_tracks():
+    """Plain --write-auto-sub returns machine translations; -orig is the original."""
+    skill_dir = ROOT / "agent_reach" / "skill"
+    for path in (
+        skill_dir / "references" / "video.md",
+        skill_dir / "SKILL.md",
+        skill_dir / "SKILL_en.md",
+    ):
+        text = path.read_text(encoding="utf-8")
+        assert '--sub-langs ".*-orig' in text, path.relative_to(ROOT)
+
+
 def test_skill_routes_finance_and_documents_opencli_discovery():
     skills = (
         ROOT / "agent_reach" / "skill" / "SKILL.md",

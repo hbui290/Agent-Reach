@@ -15,12 +15,18 @@ yt-dlp --dump-json "URL"
 ### 下载字幕
 
 ```bash
-# 下载字幕 (不下载视频)
-yt-dlp --write-sub --write-auto-sub --sub-lang "zh-Hans,zh,en" --skip-download -o "/tmp/%(id)s" "URL"
+# 先看有哪些字幕轨：手动字幕最好；自动字幕里 "<语言>-orig" 是原语言，其他语言多为机器翻译
+yt-dlp --list-subs --skip-download "URL"
+
+# 下载手动字幕 + 原语言自动字幕（zh/en 作为兜底），不下载视频
+yt-dlp --write-sub --write-auto-sub --sub-langs ".*-orig,zh-Hans,zh,en" --skip-download -o "/tmp/%(id)s" "URL"
 
 # 然后读取 .vtt 文件
 cat /tmp/VIDEO_ID.*.vtt
 ```
+
+总结时要说明文本来自手动字幕、原语言自动字幕（`-orig`）还是机器翻译。若没有 `-orig` 轨，
+与视频 `language`（见 `--dump-json`）一致的普通 `<语言>` 轨即为原语言。
 
 ### 获取评论
 
