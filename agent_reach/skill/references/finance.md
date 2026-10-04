@@ -12,7 +12,7 @@ agent-reach doctor --json
 ```
 
 `xueqiu.active_backend` 有值时按该后端使用；值为 `null` 只表示 Doctor 没有完成
-实时内容验证。雪球需要已登录会话或最小 Cookie，不能把 HTTP 400 当成股票不存在。
+实时内容验证。雪球默认使用匿名 token（来自 xueqiu.com/hq），无需登录；仍返回 HTTP 400 时再用已登录会话或最小 Cookie，不能把 HTTP 400 当成股票不存在。
 
 ## OpenCLI（桌面已有 Chrome 登录态时优先）
 

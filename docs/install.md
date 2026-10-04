@@ -114,7 +114,7 @@ After installing the basics, **ask the user** which additional channels they nee
 >
 > - 🌟 **OpenCLI**（桌面推荐）— 一次安装即可提供 Reddit/Facebook/Instagram/B站字幕/Twitter 备选，并作为小红书桌面后端；小红书只使用用户已有且明确控制的 Chrome 会话
 > - 🐦 **Twitter/X** — 搜推文、看时间线（需要登录 Cookie）
-> - 📈 **雪球** — 股票行情、热门帖子（需要登录 Cookie）
+> - 📈 **雪球** — 股票行情、热门帖子（匿名可用；账号相关功能需登录 Cookie）
 > - 🎙️ **小宇宙播客** — 音频转文字（需要免费 Groq Key）
 > - 📕 **小红书** — 搜索、阅读、评论（OpenCLI 用已有会话；MCP/存量工具用 Cookie-Editor）
 > - 📖 **Reddit** — 搜索和阅读帖子（必须登录态：桌面 OpenCLI 或 rdt-cli + Cookie）
@@ -155,7 +155,7 @@ Some channels need credentials only the user can provide. Based on the doctor ou
 
 > 🍪 **Cookie / 登录态：**
 >
-> 传统 CLI 需要 Cookie 的平台（Twitter、雪球等），**优先使用 Cookie-Editor 导入**，这是最简单最可靠的方式：
+> 传统 CLI 需要 Cookie 的平台（Twitter 等），**优先使用 Cookie-Editor 导入**，这是最简单最可靠的方式：
 > 1. 用户在自己的浏览器上登录对应平台
 > 2. 安装 [Cookie-Editor](https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm) Chrome 插件
 > 3. 点击插件 → Export → Header String
@@ -268,13 +268,13 @@ agent-reach install --system --channels facebook,instagram
 > Facebook Groups 当前只承诺读取用户登录后可见的群组列表/最近动态，不承诺任意群帖子和评论 API。Instagram 的 search 是用户搜索，不是全站帖子关键词搜索；若提示 429/登录错误，先让用户在 Chrome 里重新登录并降低频率。
 
 **雪球 / Xueqiu (股票行情 + 热门帖子):**
-> "雪球需要登录后的 Cookie。请先在 Chrome 里登录 xueqiu.com，然后运行："
+> "雪球行情默认匿名可用（自动从 xueqiu.com/hq 获取 token），无需登录。若仍报 HTTP 400，或需要账号相关功能，请先在 Chrome 里登录 xueqiu.com，然后运行："
 
 ```bash
 agent-reach configure --from-browser chrome --platform xueqiu
 ```
 
-> 只会读取并保存雪球需要的最小 Cookie；不会顺带读取其他平台。
+> 仅在匿名访问失败（如 HTTP 400）或需要账号功能时才需要；只会读取并保存雪球需要的最小 Cookie，不会顺带读取其他平台。
 
 **小宇宙播客 / Xiaoyuzhou Podcast (Groq Whisper):**
 > "小宇宙播客转文字已默认安装，只需要一个免费的 Groq API Key。"
