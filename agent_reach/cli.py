@@ -2476,6 +2476,10 @@ def _cmd_watch():
             update_available = True
             new_version = latest
             release_body = data.get("body", "")
+    elif err:
+        issues.append(f"[!] 无法检查更新：{_update_error_text(err)}")
+    elif resp is not None and resp.status_code != 200:
+        issues.append(f"[!] 无法检查更新：GitHub 返回 HTTP {resp.status_code}")
 
     # Output
     if not issues and not update_available:
