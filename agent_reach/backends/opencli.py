@@ -151,8 +151,16 @@ def opencli_status(timeout: int = 10) -> OpenCLIStatus:
     daemon_status = _fetch_daemon_status(timeout)
     if daemon_status is not None:
         st.daemon_running = True
-        st.extension_connected = bool(
-            daemon_status.get("extensionConnected")
+        # With several connected browser profiles and no selected route the
+        # daemon reports the top-level flag as false while ``profiles`` lists
+        # the connected ones.
+        profiles = daemon_status.get("profiles")
+        st.extension_connected = bool(daemon_status.get("extensionConnected")) or (
+            isinstance(profiles, list)
+            and any(
+                isinstance(p, dict) and p.get("extensionConnected") is True
+                for p in profiles
+            )
         )
 
     if not st.extension_connected:
