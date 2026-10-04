@@ -102,7 +102,12 @@ ChatGPT web 不会因读到此 skill 就能访问用户机器的 CLI、repo 或�
 ## 本机快速命令（需对应工具/凭据已可用）
 
 ```bash
-# Tavily 网页搜索（首选；需 TAVILY_API_KEY，详见 references/search.md）
+# Tavily 网页搜索（首选，详见 references/search.md）
+# key 由 `agent-reach configure tavily-key` 存在 config.yaml；env 未设置时先载入，
+# 与 curl 放在同一条 Shell 命令里，不回显 key
+AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
+PY=$(head -1 "$AR" | sed 's/^#!//')
+export TAVILY_API_KEY="${TAVILY_API_KEY:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")')}"
 curl -sS https://api.tavily.com/search -H "Authorization: Bearer $TAVILY_API_KEY" -H "Content-Type: application/json" -d '{"query":"query","search_depth":"advanced","max_results":5}'
 
 # Exa 网页搜索（专项任务，或 Tavily 不可用时备选）

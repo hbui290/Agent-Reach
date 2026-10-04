@@ -58,8 +58,11 @@ Tavily 适合需要来源、时效和正文抽取的研究任务。先 Search �
 # 交互式配置使用隐藏输入；自动化时从管道传值并追加 --stdin
 agent-reach configure tavily-key
 
-# 直接调用 API 时，在当前子进程提供 key（不要把真实 key 写入命令历史）
-read -r -s TAVILY_API_KEY; export TAVILY_API_KEY
+# 直接调用 API：TAVILY_API_KEY 未设置时从已保存的 config.yaml 载入（不回显）。
+# Agent 的每条 Shell 命令通常是独立进程，载入与 curl 必须在同一条命令里。
+AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
+PY=$(head -1 "$AR" | sed 's/^#!//')
+export TAVILY_API_KEY="${TAVILY_API_KEY:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")')}"
 curl -sS https://api.tavily.com/search \
   -H "Authorization: Bearer $TAVILY_API_KEY" \
   -H "Content-Type: application/json" \
