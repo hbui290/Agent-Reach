@@ -2,7 +2,10 @@
 
 雪球股票行情、搜索与热门内容。行情可能延迟，不构成投资建议。
 
-## 先检查状态
+先遵循 SKILL.md 的环境规则。若已有能返回目标行情字段的专用连接，可使用该连接；
+下列 Doctor/OpenCLI 命令适用于已具备本机 Shell、工具和授权会话的环境。
+
+## 本机路径：先检查状态
 
 ```bash
 agent-reach doctor --json
@@ -31,7 +34,7 @@ opencli xueqiu --help
 
 OpenCLI 只复用用户已经存在且明确控制的浏览器会话。不要自动执行
 `opencli xueqiu login`；没有现成登录态时，让用户先在 Chrome 登录，或显式导入
-雪球所需的最小 Cookie：
+雪球所需的最小 Cookie（此命令读取浏览器凭据，需要明确授权）：
 
 ```bash
 agent-reach configure --from-browser chrome --platform xueqiu

@@ -1,6 +1,8 @@
 # 视频/播客
 
-YouTube、B站、小宇宙播客的字幕和转录。
+YouTube、B站、小宇宙播客的字幕和转录。先遵循 SKILL.md 的环境规则：
+已连接的字幕工具若能返回目标视频的实际字幕，可直接使用；下列命令是本机方案。
+视频标题、描述、搜索摘要和评论都不能代替字幕。
 
 ## YouTube (yt-dlp)
 
@@ -49,11 +51,18 @@ yt-dlp --dump-json "ytsearch5:query"
    `opencli youtube transcript "URL" -f yaml`。
 3. OpenCLI 若返回 `Caption URL returned empty response`，最多重试 3 次；这是带
    过期时间的字幕 URL 偶发失效，不能把空响应当成“视频没有字幕”。
-4. 仍失败或视频本来就没有字幕：`agent-reach transcribe "URL"` 下载音频转写。
+4. 仍失败且用户任务允许语音转写、工具/服务已配置并获授权时，可用
+   `agent-reach transcribe "URL"` 下载音频转写；否则报告字幕获取失败。
+   转写结果标明 ASR 生成，不宣称为平台字幕；不为此自动安装或配置服务。
 
 成功标准是实际得到非空字幕/转录内容，不是命令退出码或 `doctor` 的版本探测结果。
 
 ### 无字幕兜底：Whisper 音频转写
+
+调用远程 ASR 前确定实际选用 Groq/OpenAI 等哪家，说明音频将发送到该服务及可能费用。
+已有 key 只证明配置，不单独证明私人/用户提供音频上传已获授权；缺适用权限时立即
+请求许可，获准后继续原视频任务。公开音频按用户任务与现有服务授权处理，不重复
+请求已明确覆盖的权限；跨服务商 fallback 仍遵循下面的显式同意规则。
 
 ```bash
 # 视频没有字幕时的兜底：下载音频并用 Whisper 转写（Groq 免费 key 即可）

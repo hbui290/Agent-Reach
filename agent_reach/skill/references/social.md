@@ -1,6 +1,8 @@
 # 社交媒体 & 社区
 
 小红书、Twitter/X、B站、V2EX、Reddit、Facebook、Instagram。
+先遵循 SKILL.md 的 host/授权规则：可用的专用连接能返回目标内容时可直接使用；
+下面的 Doctor 和 CLI 命令仅适用于本机路径。查公开网页不代表读取了完整平台内容。
 
 ## 小红书 / XiaoHongShu（多后端）
 
@@ -47,7 +49,9 @@ mcporter call xiaohongshu.search_feeds keyword=query --timeout 120000
 mcporter call xiaohongshu.get_feed_detail feed_id=... xsec_token=... --timeout 120000
 ```
 
-> 首次调用会自动下载约 150MB 无头浏览器，务必带 `--timeout 120000`。
+> 冷启动首次调用可能自动下载约 150MB 浏览器；这属于设置副作用，先确认依赖
+> 已存在或用户已授权下载/运行，再调用。未授权时不以“只读检查”为由触发下载。
+> 获授权调用时带 `--timeout 120000`。
 > 认证只走 Cookie-Editor 手工导出；导入后先运行 `check_login_status`。
 > 该显式命令会保存/导入用户提供的 xiaohongshu.com 同域 Cookie 集，用户应
 > 确认范围；非 xiaohongshu.com 域 Cookie 会被忽略。
@@ -119,12 +123,26 @@ twitter search "query" -n 10
 twitter likes
 ```
 
-### search 失败时的重试链（按序执行，成功即停）
+### search 失败时的重试链（主动完成同一任务，成功即停）
 
-1. 直接重试一次（偶发失败常见）：`twitter search "query" -n 10`
-2. 升级后再试：`pipx upgrade twitter-cli && twitter search "query" -n 10`
-3. 换 OpenCLI 备选（桌面，复用浏览器登录态）：`opencli twitter search "query" -f yaml`
-4. 都不行就改用 `twitter feed` / `twitter user-posts @somebody` 等稳定命令绕路
+先看错误：认证过期走登录/凭据恢复；限流遵守 Retry-After/冷却时间；
+ACCOUNT_RISK/ENVIRONMENT_RISK 等风控错误停止受影响路径，报告并让用户处理。
+其余搜索失败按上游顺序主动恢复，不要求用户另开“维护”任务：
+
+1. 重试一次：`twitter search "query" -n 10`。
+2. 仍失败时，检查当前版本、实际安装管理器与可用更新；有更新时主动提出升级并重试。
+   无需先证明必然是旧版本导致，但说明升级不保证修复。需要权限时立即说明修改范围、
+   风险并请求许可；已有适用授权则执行。pipx 安装用 `pipx upgrade twitter-cli`；
+   已是最新、无法确认更新、升级未获准或不适用时继续后续可用路径，不强制重装。
+3. 用已可用且会话获授权的 OpenCLI 执行同一查询：
+   `opencli twitter search "query" -f yaml`。缺工具或权限时说明具体需要并请求相应许可；
+   等待许可期间可继续互不依赖且已获授权的只读检索，不执行待批准动作。
+4. 搜索仍不可用时，主动用 `twitter feed` / `twitter user-posts @somebody` 获取相关线索，
+   再追踪其中的帖子/链接；按原问题选择相关账号，不随意编造账号。交付实际获得的信息，
+   标明 timeline/账号/查询范围和仍缺的搜索覆盖，不因覆盖不完整丢弃有用结果。
+
+Feed/user-posts 是辅助来源，不是关键词搜索；没有相关内容时如实报告。
+同一失败不循环升级/重试；授权恢复完成后回到原研究任务，不仅交付修复建议。
 
 ### 重要注意事项
 

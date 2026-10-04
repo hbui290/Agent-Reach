@@ -1,13 +1,16 @@
 # 搜索工具
 
-网页搜索通常走 **Tavily**；论文、实体和语义发现等专项任务优先 **Exa**。
-`agent-reach doctor --json` 的 `exa_search.active_backend` 只反映可用性探测，
-不是搜索分发器或自动故障切换。Agent 按下表选工具；选中的服务不可用时，
-再尝试另一个已配置的后端。
+先遵循 SKILL.md 的 fork 任务路由：普通网页/新闻查询首选已配置的 **Tavily**；
+论文、实体和语义发现首选可用的 **Exa**，不因查询简单默认绕过它们。
+已知 URL 直接按 web/platform reference 读取；适用专用 skill 与用户选择优先。
+host 原生工具用于补充核验或替代不可用后端；不要求为了查资料安装后端。
+`agent-reach doctor --json` 的 `exa_search.active_backend` 只反映诊断快照，
+不是搜索分发器或自动故障切换。无本机 Shell/CLI 时不运行 Doctor。
+所选服务不可用时，可使用其他已连接后端或足够的 host 搜索，并报告覆盖限制。
 
 ## 按任务选择后端
 
-默认按下面的规则选后端；如果选中的后端不可用，才走另一个后端：
+搜索任务按下面的规则主动选择；用户明确选择和专用 skill 优先：
 
 | 任务 | 后端 | 调用方式 |
 |---|---|---|
@@ -36,8 +39,9 @@ mcporter call exa.web_search_exa \
   "objective=Find official company pages and reliable company profiles."
 ```
 
-不要因为任务写了“research”就自动选 Exa：一般深度调研仍走 Tavily
-`Research`; 只有明确是论文/学术研究或语义/RAG/实体发现时才走 Exa。
+不要因为任务写了“research”就自动选 Exa：一般深度调研在可用且适合预算时可用
+Tavily Research；不是每次调研都需要这个接口。论文/学术或语义/RAG/实体发现
+优先 Exa；缺失时用足够的 host 搜索或其他已连接服务，不能宣称用了未调用的后端。
 
 ## 安全边界
 
@@ -72,7 +76,7 @@ curl -sS https://api.tavily.com/search \
 | `include_domains` / `exclude_domains` | 限制来源范围 |
 | `include_raw_content=markdown` | 需要搜索结果正文时使用；否则后续调用 Extract |
 
-需要完整正文时调用 `/extract`；需要长篇、有引用的综合报告时调用 `/research`。
+需要正文且使用 Tavily 时按需调用 `/extract`；长篇报告可在预算/授权适合时用 `/research`，不作为报告的必需步骤。
 不要为每个普通查询直接调用 Research。
 
 ## Exa（专项 + 备选）
@@ -87,12 +91,16 @@ mcporter call exa.web_search_exa \
 ```
 
 `EXA_SEARCH_BACKEND=exa` 只会把 Exa 提到 Doctor 的第一检查顺位，不会自动分发搜索命令；
-未知覆盖值不会禁用其他后端。实际搜索由 Agent 按任务选择，失败时再尝试另一个已配置后端。
+未知覆盖值不会禁用其他后端。实际搜索由 Agent 按任务选择；用户允许替代时，失败可试其他已配置后端。
 
 ## 选择原则
 
 | 工具 | 适用场景 |
 |-----|---------|
-| Tavily | 研究、时效信息、可信域名过滤、Search → Extract → Research |
-| Exa | 语义搜索、快速发现候选网页 |
+| host 原生搜索/读取 | 补充、来源核验、适用专用 skill 或后端不可用时的替代；不默认绕过 fork 后端 |
+| Tavily | 广泛网页/新闻发现、域名过滤；按需 Search → Extract，Research 非必需 |
+| Exa | 论文、公司/人物、语义/RAG、相似页面发现 |
 | GitHub 搜索 | 仓库、代码、Issue、PR；见 `dev.md` |
+
+成功需来源与请求对象、时效、字段和范围匹配。搜索摘要/自动答案只是线索；
+关键论断读取原始来源核验，找不到目标时报告未找到，不用无关非空结果代替。
