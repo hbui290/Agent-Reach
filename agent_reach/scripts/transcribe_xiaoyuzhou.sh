@@ -32,11 +32,13 @@ ensure_python() {
     if [ "${#PYTHON_CMD[@]}" -gt 0 ]; then
         return 0
     fi
-    if command -v python3 >/dev/null 2>&1; then
+    # Actually run each candidate: Windows ships Microsoft Store stubs named
+    # python3/python that exist on PATH but only print an install prompt.
+    if command -v python3 >/dev/null 2>&1 && python3 -c "" >/dev/null 2>&1; then
         PYTHON_CMD=(python3)
-    elif command -v python >/dev/null 2>&1; then
+    elif command -v python >/dev/null 2>&1 && python -c "" >/dev/null 2>&1; then
         PYTHON_CMD=(python)
-    elif command -v py >/dev/null 2>&1; then
+    elif command -v py >/dev/null 2>&1 && py -3 -c "" >/dev/null 2>&1; then
         PYTHON_CMD=(py -3)
     else
         echo "❌ 未找到 Python（尝试过 python3、python、py -3）" >&2
