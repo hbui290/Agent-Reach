@@ -34,7 +34,7 @@ This fork stays close to [Panniantong/Agent-Reach](https://github.com/Pannianton
 - Tavily is the default for general web search, news, extraction, crawling, and deep research.
 - Exa remains available for semantic, academic, company, people, RAG, and similar-page tasks, and as a fallback.
 - `agent-reach doctor` checks Tavily availability through the usage endpoint without spending a search credit and reports exhausted quotas safely.
-- Tavily keys can be saved safely for Doctor through hidden input or `--stdin`; direct upstream calls still require `TAVILY_API_KEY` in the caller environment.
+- Tavily keys can be saved safely for Doctor through hidden input or `--stdin`; the skill's direct Tavily API calls load the saved key from `config.yaml` and fall back to `TAVILY_API_KEY`.
 - Routing, malformed API responses, quota states, secret handling, and fallback behavior have regression coverage.
 - Selected upstream hardening is included for explicit install targets, YouTube browser cookies, Jina health checks, responsive MCP status calls, restricted filesystems, and safe `mcporter` examples.
 
@@ -46,7 +46,7 @@ The Agent Reach skill also gives agents task-based instructions for using these 
 - Recover from failures with bounded retries and suitable authorized alternatives. For X search, the documented path is retry → check for a `twitter-cli` update → OpenCLI → relevant account feeds/posts; a feed is reported as a limited source, not full X search.
 - Before sending private URLs or private audio to a remote service, identify the recipient and data transfer and obtain applicable authorization. Report whether video text came from platform captions or ASR.
 
-These are agent-instruction updates in the skill files. This update does not change the CLI runtime or dependencies, or add platform backends. Detailed setup belongs in the linked guides rather than this landing page.
+These skill bullets are agent instructions only; the CLI runtime changes are the search, Doctor, and hardening items listed above. No dependencies or platform backends are added. Detailed setup belongs in the linked guides rather than this landing page.
 
 To test the current fork branch directly:
 
@@ -83,7 +83,7 @@ Send this to your AI agent:
 Install the hbui290 fork of Agent Reach. For a new pipx install, use `pipx install https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip`; first check the source of any existing `agent-reach` installation before replacing it. Then run `agent-reach install --env=auto` for a read-only environment check. Use `--system` only after explicitly approving the proposed system changes.
 ~~~
 
-After installation, run <code>agent-reach doctor</code> to check channel status. The linked [Update Guide](docs/update.md) tracks upstream releases; update a fork installation from the same fork source and with its matching install method.
+After installation, run <code>agent-reach doctor</code> to check channel status. The [Update Guide](docs/update.md) updates from this fork with the matching install method. `agent-reach check-update` compares against upstream releases, which reach this fork only after they are merged.
 
 > **Safe by default:** <code>agent-reach install</code> only checks the environment. Use <code>agent-reach install --system</code> only after explicitly approving system changes. Preview changes with <code>--dry-run</code>.
 

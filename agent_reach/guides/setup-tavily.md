@@ -17,13 +17,13 @@ agent-reach doctor --json
 当 `exa_search.active_backend` 为 `Tavily via REST` 时，Tavily 已通过 `/usage`
 验证。Doctor 不执行搜索，因此不会消耗搜索 credit。
 
-直接调用 Tavily API 时，需要在当前进程设置 `TAVILY_API_KEY`。未设置时可从已保存的
-config.yaml 载入（不回显 key；与 curl 放在同一条 Shell 命令里）：
+直接调用 Tavily API 时，与 Doctor 一致先读 config.yaml，没有时用当前进程的
+`TAVILY_API_KEY`（不回显 key；与 curl 放在同一条 Shell 命令里）：
 
 ```bash
 AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
-PY=$(head -1 "$AR" | sed 's/^#!//')
-export TAVILY_API_KEY="${TAVILY_API_KEY:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")')}"
+PY=$(head -1 "$AR" 2>/dev/null | sed 's/^#!//')
+export TAVILY_API_KEY="$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")' 2>/dev/null || printf %s "$TAVILY_API_KEY")"
 curl -sS https://api.tavily.com/search \
   -H "Authorization: Bearer $TAVILY_API_KEY" \
   -H "Content-Type: application/json" \
@@ -31,7 +31,8 @@ curl -sS https://api.tavily.com/search \
 ```
 
 研究任务建议先 Search，再对候选 URL 调用 Extract；只有需要完整综合报告时才调用
-Research。Tavily 暂时不可用或没有 key 时使用 Exa：
+Research（各端点命令见 `agent_reach/skill/references/search.md`）。Tavily 暂时不可用或
+没有 key 时使用 Exa（用户明确限定只用 Tavily 时除外，改为报告不可用）：
 
 ```bash
 mcporter call exa.web_search_exa query=query numResults=5 "objective=Find relevant sources for the requested query."

@@ -8,7 +8,8 @@ LinkedIn、Boss直聘。可用的 host 专用连接优先用于它确实能返�
 ## LinkedIn
 
 ```bash
-# mcporter 不会剥离 key="value" 中的引号；值含空格时给整个 key=value token 加引号。
+# 值含空格或特殊字符时给整个 token 加引号："key=value with spaces"。不要在已加引号的
+# token 里再给值加引号（如 'key="v"'）：这时引号会原样传给 mcporter，不会被剥离。
 mcporter call linkedin.get_person_profile linkedin_username=username sections=experience,education
 
 # 搜索人才

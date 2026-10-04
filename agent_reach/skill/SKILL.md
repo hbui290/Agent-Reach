@@ -13,7 +13,7 @@ description: >
   NOT for: 只加工用户已提供的内容（翻译/总结/写报告）；发帖/评论/点赞/交易等写操作；
   已有适用专用 skill 的平台（先用专用 skill）。
 metadata:
-  homepage: https://github.com/Panniantong/Agent-Reach
+  homepage: https://github.com/hbui290/Agent-Reach
 ---
 
 # Agent Reach — 互联网能力路由器
@@ -103,17 +103,17 @@ ChatGPT web 不会因读到此 skill 就能访问用户机器的 CLI、repo 或�
 
 ```bash
 # Tavily 网页搜索（首选，详见 references/search.md）
-# key 由 `agent-reach configure tavily-key` 存在 config.yaml；env 未设置时先载入，
-# 与 curl 放在同一条 Shell 命令里，不回显 key
+# key 由 `agent-reach configure tavily-key` 存在 config.yaml；与 Doctor 一致先读 config.yaml，
+# 没有时用 TAVILY_API_KEY 环境变量。与 curl 放在同一条 Shell 命令里，不回显 key
 AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
-PY=$(head -1 "$AR" | sed 's/^#!//')
-export TAVILY_API_KEY="${TAVILY_API_KEY:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")')}"
-curl -sS https://api.tavily.com/search -H "Authorization: Bearer $TAVILY_API_KEY" -H "Content-Type: application/json" -d '{"query":"query","search_depth":"advanced","max_results":5}'
+PY=$(head -1 "$AR" 2>/dev/null | sed 's/^#!//')
+export TAVILY_API_KEY="$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")' 2>/dev/null || printf %s "$TAVILY_API_KEY")"
+curl -sS https://api.tavily.com/search -H "Authorization: Bearer $TAVILY_API_KEY" -H "Content-Type: application/json" -d '{"query":"query","search_depth":"advanced","max_results":5,"include_answer":false}'
 
 # Exa 网页搜索（专项任务，或 Tavily 不可用时备选）
 mcporter call exa.web_search_exa query=query numResults=5 "objective=Find relevant sources for the requested query."
 
-# 通用网页阅读
+# 通用网页阅读（仅公开 URL；私密/内网/签名 URL 见 references/web.md）
 curl -s "https://r.jina.ai/URL"
 
 # GitHub 搜索

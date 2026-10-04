@@ -23,7 +23,8 @@ curl -s "https://r.jina.ai/https://example.com/article"
 ## Web Reader (仅在该 MCP 实际已连接时)
 
 ```bash
-# mcporter 不会剥离 key="value" 中的引号；不要把引号放在等号右侧。
+# 值含空格或特殊字符时给整个 token 加引号："key=value with spaces"。不要在已加引号的
+# token 里再给值加引号（如 'key="v"'）：这时引号会原样传给 mcporter，不会被剥离。
 mcporter call web-reader.webReader url=https://example.com
 
 # 保留图片
