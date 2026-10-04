@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Least-privilege cookie extraction from local browsers.
 
-Supports: Chrome, Firefox, Edge, Brave, Opera
+Supports: Chrome, Firefox, Edge, Brave, Opera, Vivaldi
 Extracts one explicitly requested platform at a time.
 
 Usage:
@@ -59,8 +59,8 @@ PLATFORM_SPECS: Tuple[PlatformSpec, ...] = (
 _PLATFORM_SPECS_BY_KEY: Dict[str, PlatformSpec] = {
     spec["config_key"]: spec for spec in PLATFORM_SPECS
 }
-SUPPORTED_BROWSERS = ("chrome", "firefox", "edge", "brave", "opera")
-PROFILE_SELECTABLE_BROWSERS = ("chrome", "edge", "brave")
+SUPPORTED_BROWSERS = ("chrome", "firefox", "edge", "brave", "opera", "vivaldi")
+PROFILE_SELECTABLE_BROWSERS = ("chrome", "edge", "brave", "vivaldi")
 _MAX_XFETCH_SESSION_BYTES = 64 * 1024
 _COOKIE_EDITOR_ONLY = {
     "twitter": "twitter-cookies",
@@ -82,6 +82,11 @@ _CHROMIUM_USER_DATA_DIRS: Dict[str, ChromiumPaths] = {
         "darwin": "~/Library/Application Support/BraveSoftware/Brave-Browser",
         "linux": "~/.config/BraveSoftware/Brave-Browser",
         "win32": ("BraveSoftware", "Brave-Browser", "User Data"),
+    },
+    "vivaldi": {
+        "darwin": "~/Library/Application Support/Vivaldi",
+        "linux": "~/.config/vivaldi",
+        "win32": ("Vivaldi", "User Data"),
     },
 }
 
@@ -262,14 +267,8 @@ def extract_all(
     if use_rookiepy:
         # rookiepy returns list of dicts with name/value/domain/path keys
         try:
-            browser_funcs = {
-                "chrome": rookiepy.chrome,
-                "firefox": rookiepy.firefox,
-                "edge": rookiepy.edge,
-                "brave": rookiepy.brave,
-                "opera": rookiepy.opera,
-            }
-            raw_cookies = browser_funcs[browser](list(spec["domains"]))
+            # SUPPORTED_BROWSERS names match the library function names.
+            raw_cookies = getattr(rookiepy, browser)(list(spec["domains"]))
             # Wrap into objects with .name, .value, .domain for compatibility
             class _Cookie:
                 def __init__(self, d):
@@ -284,13 +283,6 @@ def extract_all(
                 f"Make sure {browser} is closed and you have permission."
             )
     else:
-        browser_funcs = {
-            "chrome": browser_cookie3.chrome,
-            "firefox": browser_cookie3.firefox,
-            "edge": browser_cookie3.edge,
-            "brave": browser_cookie3.brave,
-            "opera": browser_cookie3.opera,
-        }
         try:
             cookie_jar = []
             seen = set()
@@ -298,7 +290,7 @@ def extract_all(
                 kwargs = {"domain_name": domain}
                 if cookie_file is not None:
                     kwargs["cookie_file"] = cookie_file
-                for cookie in browser_funcs[browser](**kwargs):
+                for cookie in getattr(browser_cookie3, browser)(**kwargs):
                     identity = (
                         getattr(cookie, "name", ""),
                         getattr(cookie, "domain", ""),

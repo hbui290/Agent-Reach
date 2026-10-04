@@ -220,3 +220,63 @@ def test_bilibili_config_reports_each_written_key(monkeypatch):
     }
     assert result[0].targets == ("bilibili_sessdata", "bilibili_csrf")
     assert tuple(result[0]) == ("Bilibili", True, "SESSDATA + bili_jct")
+
+
+def test_vivaldi_is_supported_via_rookiepy(monkeypatch):
+    """Vivaldi is Chromium-based and supported by both cookie libraries (#734)."""
+    calls = []
+
+    def vivaldi(domains):
+        calls.append(domains)
+        return [{"name": "xq_a_token", "value": "t", "domain": ".xueqiu.com"}]
+
+    monkeypatch.setitem(sys.modules, "rookiepy", SimpleNamespace(vivaldi=vivaldi))
+
+    extracted = cookie_extract.extract_all("vivaldi", platform="xueqiu")
+
+    assert calls == [[".xueqiu.com"]]
+    assert extracted == {"xueqiu": {"xq_a_token": "t"}}
+
+
+def test_vivaldi_profile_uses_browser_cookie3_with_that_database(
+    tmp_path, monkeypatch
+):
+    cookie_db = tmp_path / "Profile 2" / "Network" / "Cookies"
+    cookie_db.parent.mkdir(parents=True)
+    cookie_db.write_bytes(b"test database placeholder")
+    monkeypatch.setattr(
+        cookie_extract, "_chromium_user_data_dir", lambda browser: tmp_path
+    )
+    monkeypatch.setitem(sys.modules, "rookiepy", None)
+    calls = []
+
+    def vivaldi(*, cookie_file=None, domain_name=""):
+        calls.append((cookie_file, domain_name))
+        return []
+
+    monkeypatch.setitem(
+        sys.modules, "browser_cookie3", SimpleNamespace(vivaldi=vivaldi)
+    )
+
+    cookie_extract.extract_all("vivaldi", platform="xueqiu", profile="Profile 2")
+
+    assert calls == [(str(cookie_db), ".xueqiu.com")]
+
+
+def test_vivaldi_user_data_dir_per_platform(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    darwin = cookie_extract._chromium_user_data_dir("vivaldi")
+    assert darwin is not None
+    assert darwin.parts[-3:] == ("Library", "Application Support", "Vivaldi")
+    monkeypatch.setattr(sys, "platform", "linux")
+    linux = cookie_extract._chromium_user_data_dir("vivaldi")
+    assert linux is not None
+    assert linux.parts[-2:] == (".config", "vivaldi")
+
+
+def test_vivaldi_user_data_dir_on_windows(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    assert cookie_extract._chromium_user_data_dir("vivaldi") == (
+        tmp_path / "Vivaldi" / "User Data"
+    )

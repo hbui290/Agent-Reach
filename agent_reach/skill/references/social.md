@@ -11,8 +11,11 @@
 ### 后端 A：OpenCLI（桌面首选）
 
 ```bash
-# 搜索笔记
+# 搜索笔记（默认综合排序）
 opencli xiaohongshu search "query" -f yaml
+# 排序/筛选：--sort latest|most-liked|most-commented|most-collected
+#           --note-type video|image  --publish-time day|week|half-year
+opencli xiaohongshu search "query" --sort latest --publish-time week -f yaml
 
 # 读笔记正文+互动数据（用搜索结果里的完整 URL，含 xsec_token）
 opencli xiaohongshu note "NOTE_URL" -f yaml
@@ -272,7 +275,12 @@ rdt all --limit 10              # 浏览 /r/all
 ```
 
 > **安装**: `pipx install 'git+https://github.com/public-clis/rdt-cli.git'`（PyPI 版本落后，需从 GitHub 装 v0.4.2+）。先 `rdt login` 才能搜索和阅读（服务器无浏览器时手动写 Cookie，见 doctor 提示）。
+
 > 建议使用 `--yaml` 输出，对 AI agent 更友好。
+>
+> **已知问题**：Reddit 会按 TLS 指纹封锁 rdt-cli 使用的 httpx，Cookie 有效也可能返回 403
+> （`Access forbidden`）。修复 rdt-cli PR #20 尚未合并，Doctor 只做静态检查发现不了。
+> 遇到 403 改用后端 A（OpenCLI）或 Tavily/Exa `site:reddit.com` 搜索，不要反复重新登录。
 
 ### 高级选项：官方 API + PRAW（仅限已有凭证的用户）
 

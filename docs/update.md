@@ -36,14 +36,22 @@ If it says "已是最新版本", skip to Step 4 (verify). Otherwise continue.
 
 ### Step 2: Update Agent Reach package
 
+Update the same installation that `agent-reach` runs from. A plain `pip`
+upgrade does not touch a pipx or venv install, so the old version keeps running.
+
 ```bash
-pip install --upgrade https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip
+command -v agent-reach   # shows which installation is active
 ```
 
-> If pip complains about `externally-managed-environment` (PEP 668), the user
-> originally installed via pipx or a venv — use the matching command:
-> `pipx install --force https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip`
-> or activate `~/.agent-reach-venv` first.
+| `agent-reach` path contains | Update command |
+|---|---|
+| `pipx` (e.g. `~/.local/bin` + `pipx list` shows `agent-reach`) | `pipx install --force https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip` |
+| `.agent-reach-venv` | `~/.agent-reach-venv/bin/pip install --upgrade https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip` |
+| anything else | `python3 -m pip install --upgrade https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip` |
+
+Fork updates may keep the same version number, so check that the update
+command succeeded rather than comparing `agent-reach version`. If pip reports
+`externally-managed-environment` (PEP 668), use the pipx command instead.
 
 ### Step 3: Refresh upstream tools
 

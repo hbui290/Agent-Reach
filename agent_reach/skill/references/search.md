@@ -105,6 +105,15 @@ mcporter call exa.web_search_exa \
   "objective=Find relevant sources for the requested query."
 ```
 
+读取已知 URL 全文可用默认注册的 `web_fetch_exa`（`urls` 数组，可选 `maxCharacters`，默认 3000）：
+
+```bash
+mcporter call exa.web_fetch_exa 'urls=["https://example.com/a"]' maxCharacters=8000
+```
+
+`agent_run`（多步研究/列表构建）默认不注册，需在 MCP URL 加 `?tools=web_search_exa,web_fetch_exa,agent_run`
+并配置 Exa 认证（OAuth 或 API key），可能产生费用；未经用户同意不要改配置。
+
 Exa MCP 的 `get_code_context_exa` 已弃用且默认不注册。代码问题也使用
 `web_search_exa`；需要精确搜索仓库内容时，改用 `dev.md` 中的 GitHub 搜索。
 
@@ -118,7 +127,6 @@ Exa MCP 的 `get_code_context_exa` 已弃用且默认不注册。代码问题也
 | host 原生搜索/读取 | 补充、来源核验、适用专用 skill 或后端不可用时的替代；不默认绕过 fork 后端 |
 | Tavily | 广泛网页/新闻发现、域名过滤；按需 Search → Extract，Research 非必需 |
 | Exa | 论文、公司/人物、语义/RAG、相似页面发现 |
-| 智谱搜索（my-mcp-tools，仅已连接时） | 中文网页搜索补充；Tavily/Exa 中文结果不足时使用 |
 | GitHub 搜索 | 仓库、代码、Issue、PR；见 `dev.md` |
 
 成功需来源与请求对象、时效、字段和范围匹配。搜索摘要/自动答案只是线索；

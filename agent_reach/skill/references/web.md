@@ -20,6 +20,10 @@ curl -s "https://r.jina.ai/https://example.com/article"
 
 **适用场景**: 大多数网页可以直接用 Jina Reader 读取。
 
+超时或连接失败（部分地区/网络无法直连 r.jina.ai）时，先设置代理再重试：
+`HTTPS_PROXY=http://127.0.0.1:7890 curl -s "https://r.jina.ai/URL"`（端口换成实际代理），
+或改用 Tavily Extract / host 读取工具。
+
 ## Web Reader (仅在该 MCP 实际已连接时)
 
 ```bash

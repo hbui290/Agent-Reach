@@ -169,6 +169,39 @@ def test_setup_uses_hidden_prompts_for_secrets(monkeypatch, capsys):
     assert groq_secret not in output.err
 
 
+def test_setup_calls_mcporter_by_resolved_path(monkeypatch, capsys):
+    """Windows only resolves the mcporter .cmd shim via shutil.which (#590)."""
+    import getpass
+    import shutil
+
+    import agent_reach.config as config_module
+
+    mcporter_cmd = r"C:\npm\mcporter.CMD"
+    calls = []
+    config = _MemoryConfig()
+    config.config_path = Path("/tmp/agent-reach-test-config.yaml")
+
+    monkeypatch.setattr(config_module, "Config", lambda: config)
+    monkeypatch.setattr(
+        shutil, "which", lambda name: mcporter_cmd if name == "mcporter" else None
+    )
+    monkeypatch.setattr(getpass, "getpass", lambda _prompt: "")
+    monkeypatch.setattr("builtins.input", lambda _prompt="": "y")
+
+    def fake_run(args, **_kwargs):
+        calls.append(args)
+        stdout = json.dumps({"servers": []}) if "list" in args else ""
+        return _docker_result(args, stdout=stdout)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    cli._cmd_setup()
+
+    assert [mcporter_cmd, "config", "list", "--json"] in calls
+    assert any(call[:4] == [mcporter_cmd, "config", "add", "exa"] for call in calls)
+    assert all(call[0] != "mcporter" for call in calls)
+
+
 def test_configure_positional_secret_warns_to_use_safe_input(
     monkeypatch, capsys
 ):
@@ -1328,6 +1361,42 @@ def test_profile_rejects_unsupported_browser_before_cookie_backend(
     assert "Chrome/Edge/Brave" in capsys.readouterr().err
 
 
+def test_configure_from_browser_accepts_vivaldi_profile(monkeypatch):
+    """argparse choices and the --profile gate both include Vivaldi (#734)."""
+    import agent_reach.cookie_extract as cookie_extract
+
+    calls = []
+    monkeypatch.setattr(cli, "_configure_logging", lambda _verbose=False: None)
+    monkeypatch.setattr(
+        cookie_extract,
+        "configure_from_browser",
+        lambda browser, config, **kwargs: calls.append((browser, kwargs)) or [],
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "agent-reach",
+            "configure",
+            "--from-browser",
+            "vivaldi",
+            "--platform",
+            "xueqiu",
+            "--profile",
+            "Profile 1",
+        ],
+    )
+
+    try:
+        cli.main()
+    except SystemExit as exc:
+        # No fake cookies → non-zero exit is fine; 2 would mean argparse rejected it.
+        assert exc.code != 2
+
+    assert calls and calls[0][0] == "vivaldi"
+    assert calls[0][1]["profile"] == "Profile 1"
+
+
 def test_missing_profile_is_clean_cli_error_without_traceback(
     monkeypatch, capsys
 ):
@@ -1447,3 +1516,5 @@ def test_uninstall_preserves_mcporter_entries_without_agent_reach_provenance(
     output = capsys.readouterr().out
     assert not any("remove" in call for call in calls)
     assert "来源无法证明" in output
+    # Resolved path, not bare "mcporter": Windows needs the .cmd shim (#590).
+    assert calls and all(call[0] == "/usr/bin/mcporter" for call in calls)

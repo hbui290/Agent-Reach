@@ -67,6 +67,11 @@ def _configure_logging(verbose: bool = False):
 
 
 def main():
+    from agent_reach.cookie_extract import (
+        PROFILE_SELECTABLE_BROWSERS,
+        SUPPORTED_BROWSERS,
+    )
+
     _ensure_utf8_console()
 
     parser = argparse.ArgumentParser(
@@ -120,7 +125,7 @@ def main():
         help="Read the value from stdin instead of exposing it in process arguments",
     )
     p_conf.add_argument("--from-browser", metavar="BROWSER",
-                        choices=["chrome", "firefox", "edge", "brave", "opera"],
+                        choices=list(SUPPORTED_BROWSERS),
                         help="Extract cookies for one explicitly selected platform")
     p_conf.add_argument(
         "--platform",
@@ -202,9 +207,9 @@ def main():
                 f"{args.platform} requires Cookie-Editor export; use "
                 f"`agent-reach configure {manual_keys[args.platform]} ...`"
             )
-        if args.profile and args.from_browser not in {"chrome", "edge", "brave"}:
+        if args.profile and args.from_browser not in PROFILE_SELECTABLE_BROWSERS:
             p_conf.error(
-                "--profile is supported only for Chrome/Edge/Brave"
+                "--profile is supported only for Chrome/Edge/Brave/Vivaldi"
             )
         if args.sync_legacy_twitter:
             p_conf.error("--sync-legacy-twitter is only valid with twitter-cookies")
@@ -1977,7 +1982,8 @@ def _cmd_uninstall(args):
                     print(f"  Could not remove {skill_path}: {e}")
 
     # ── 3. mcporter MCP entries ──
-    if shutil.which("mcporter"):
+    mcporter_cmd = shutil.which("mcporter")
+    if mcporter_cmd:
         from agent_reach.channels.mcporter import (
             McporterConfigError,
             configured_server_names,
@@ -1986,7 +1992,7 @@ def _cmd_uninstall(args):
         try:
             result = subprocess.run(
                 [
-                    "mcporter",
+                    mcporter_cmd,
                     "config",
                     "list",
                     "--json",
@@ -2083,7 +2089,8 @@ def _cmd_setup():
     print()
     print("【备选】Exa（通过 mcporter）")
 
-    if not shutil.which("mcporter"):
+    mcporter_cmd = shutil.which("mcporter")
+    if not mcporter_cmd:
         print("  当前状态: -- mcporter 未安装")
         print("  安装：npm install -g mcporter")
         print("  然后：mcporter config add exa https://mcp.exa.ai/mcp --scope home")
@@ -2096,7 +2103,7 @@ def _cmd_setup():
             )
 
             r = subprocess.run(
-                ["mcporter", "config", "list", "--json"],
+                [mcporter_cmd, "config", "list", "--json"],
                 capture_output=True,
                 encoding="utf-8",
                 errors="replace",
@@ -2112,7 +2119,7 @@ def _cmd_setup():
                 if setup_now in ("", "y", "yes"):
                     add_r = subprocess.run(
                         [
-                            "mcporter",
+                            mcporter_cmd,
                             "config",
                             "add",
                             "exa",
@@ -2319,8 +2326,9 @@ def _github_get_with_retry(url, timeout=10, retries=3, sleeper=time.sleep, heade
 _UPDATE_INSTRUCTIONS = (
     "更新方式（推荐，复制这句话给你的 AI Agent，会完整更新本体+上游工具+skill）：\n"
     "  帮我更新 Agent Reach：https://raw.githubusercontent.com/hbui290/Agent-Reach/main/docs/update.md\n"
-    "仅更新本体（不含上游工具和 skill）：\n"
-    "  pip install --upgrade https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip\n"
+    "仅更新本体（不含上游工具和 skill；用与安装时相同的方式）：\n"
+    "  pipx 安装：pipx install --force https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip\n"
+    "  venv 安装：~/.agent-reach-venv/bin/pip install --upgrade https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip\n"
     "注意：版本号对比的是上游发布；fork 合并上游后才会包含新版。"
 )
 
