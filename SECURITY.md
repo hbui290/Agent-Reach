@@ -11,7 +11,10 @@
 If you discover a security vulnerability in Agent-Reach, please report 
 it responsibly by using GitHub's private security advisory feature:
 
-👉 **[Report a vulnerability](https://github.com/Panniantong/Agent-Reach/security/advisories/new)**
+👉 **[Report a vulnerability](https://github.com/hbui290/Agent-Reach/security/advisories/new)**
+
+Vulnerabilities in code that exists only upstream may also be reported to
+[Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach/security/advisories/new).
 
 Please do NOT open a public GitHub issue for security vulnerabilities.
 

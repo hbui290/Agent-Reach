@@ -238,6 +238,16 @@ def test_install_guide_directory_table_matches_real_layout():
     assert "`references/*.md`" in text
 
 
+def test_security_policy_routes_reports_to_the_fork():
+    """The fork must not send reporters only to the upstream advisory form."""
+    text = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    assert "https://github.com/hbui290/Agent-Reach/security/advisories/new" in text
+    primary = text.split("## Reporting a Vulnerability", 1)[1].split("##", 1)[0]
+    assert primary.index("hbui290/Agent-Reach") < primary.index(
+        "Panniantong/Agent-Reach"
+    )
+
+
 def test_skill_routes_finance_and_documents_opencli_discovery():
     skills = (
         ROOT / "agent_reach" / "skill" / "SKILL.md",
