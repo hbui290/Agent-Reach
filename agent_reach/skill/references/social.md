@@ -18,6 +18,7 @@ opencli xiaohongshu search "query" -f yaml
 opencli xiaohongshu search "query" --sort latest --publish-time week -f yaml
 
 # 读笔记正文+互动数据（用搜索结果里的完整 URL，含 xsec_token）
+# 点赞/收藏/评论全为 0 多半是页面未加载完：重试一次，仍为 0 就说明数据未取到，不要当真实值报告
 opencli xiaohongshu note "NOTE_URL" -f yaml
 
 # 评论（支持楼中楼）
@@ -98,6 +99,17 @@ xhs feed                    # 推荐
 ```bash
 export TWITTER_AUTH_TOKEN="..."
 export TWITTER_CT0="..."
+```
+
+已用 `configure twitter-cookies` 保存时，可在同一条 Shell 命令里从 config.yaml
+读出（已有环境变量优先，不回显值）：
+
+```bash
+AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
+PY=$(head -1 "$AR" 2>/dev/null | sed 's/^#!//')
+export TWITTER_AUTH_TOKEN="${TWITTER_AUTH_TOKEN:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("twitter_auth_token") or "")' 2>/dev/null)}"
+export TWITTER_CT0="${TWITTER_CT0:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("twitter_ct0") or "")' 2>/dev/null)}"
+twitter search "query" -n 10
 ```
 
 ### 稳定命令
@@ -305,6 +317,8 @@ opencli facebook groups --limit 20 -f yaml
 ```
 
 > 要求 Chrome 打开且装了 OpenCLI 扩展，并已登录 facebook.com。Facebook Groups 当前只承诺读取当前账号可见的群组列表/最近动态，不承诺任意群帖子和评论 API。
+>
+> 返回空 `[]` 时先跑 `opencli facebook profile zuck -f yaml`：它也失败 → 登录态/扩展问题；它正常 → 是该命令的解析问题，如实告知结果为空，不要声称“没有相关内容”。
 
 ## Instagram（OpenCLI，必须登录态）
 
