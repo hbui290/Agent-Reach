@@ -318,6 +318,12 @@ agent-reach configure groq-key
 >
 > `uvx` 会按需获取并启动最新版服务，无需另装 Python 包或常驻 HTTP 服务。
 >
+> **Windows：** 若报 `ImportError: DLL load failed while importing _greenlet`，
+> 先安装 [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist)
+> （greenlet 3.3.1 起需要 `MSVCP140.dll`）。无法安装时，x64 机器可改用
+> `uv tool run --with greenlet==3.2.4 --with mcp-server-linkedin mcp-server-linkedin`；
+> ARM64 没有 3.3.1 之前的 wheel，不要用这个 pin。
+>
 > **首次登录（需要浏览器界面）：**
 > ```bash
 > uvx mcp-server-linkedin@latest --login
