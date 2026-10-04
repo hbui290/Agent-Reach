@@ -192,7 +192,6 @@ user for each step:
 1. `agent-reach` (already on PATH)
 2. `~/.agent-reach-venv/bin/agent-reach` (default venv from install.md)
 3. `~/.local/bin/agent-reach`
-4. `conda run -n dl agent-reach` (only if a conda env named `dl` exists; upstream author's setup)
 
 If none exists, say it is not installed and use host tools; do not create
 environments or reinstall for a lookup.

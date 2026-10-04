@@ -248,6 +248,15 @@ def test_security_policy_routes_reports_to_the_fork():
     )
 
 
+def test_cli_lookup_guidance_has_no_author_specific_conda_step():
+    """`conda run -n dl` is the upstream author's private environment."""
+    skill_dir = ROOT / "agent_reach" / "skill"
+    for path in (skill_dir / "SKILL.md", skill_dir / "SKILL_en.md", ROOT / "README.md"):
+        text = path.read_text(encoding="utf-8")
+        assert "conda run -n dl" not in text, path.relative_to(ROOT)
+    assert "→ conda" not in (ROOT / "README.md").read_text(encoding="utf-8")
+
+
 def test_skill_routes_finance_and_documents_opencli_discovery():
     skills = (
         ROOT / "agent_reach" / "skill" / "SKILL.md",
