@@ -95,7 +95,7 @@ Compared with upstream [Panniantong/Agent-Reach](https://github.com/Panniantong/
 
 **Agent skill**
 - Read-only tasks run directly; installs, logins, cookies, and browser actions require approval.
-- Finds the CLI via PATH → venv → `~/.local/bin` → conda.
+- Finds the CLI via PATH → venv → `~/.local/bin`.
 - Treats search results as untrusted data (prompt-injection defense).
 - Asks before sending private URLs or audio to remote services, and reports whether video text came from captions or ASR.
 

@@ -209,6 +209,83 @@ def test_video_reference_has_content_level_youtube_fallbacks():
     assert "agent-reach transcribe" in text
 
 
+def test_youtube_subtitle_commands_prefer_original_language_tracks():
+    """Plain --write-auto-sub returns machine translations; -orig is the original."""
+    skill_dir = ROOT / "agent_reach" / "skill"
+    for path in (
+        skill_dir / "references" / "video.md",
+        skill_dir / "SKILL.md",
+        skill_dir / "SKILL_en.md",
+    ):
+        text = path.read_text(encoding="utf-8")
+        assert '--sub-langs ".*-orig' in text, path.relative_to(ROOT)
+
+
+def test_update_guide_says_doctor_does_not_install_skills():
+    """Doctor is read-only; only `skill --install` writes skill files."""
+    text = (ROOT / "docs" / "update.md").read_text(encoding="utf-8")
+    assert "makes sure an Agent Reach skill" not in text
+    assert "`agent-reach doctor` is read-only" in text
+    assert "agent-reach skill --install" in text
+
+
+def test_install_guide_directory_table_matches_real_layout():
+    """Config is YAML and skill install writes SKILL.md plus references/."""
+    text = (ROOT / "docs" / "install.md").read_text(encoding="utf-8")
+    assert "~/.agent-reach/config.json" not in text
+    assert "~/.agent-reach/config.yaml" in text
+    assert "~/.agents/skills/agent-reach/" in text
+    assert "`references/*.md`" in text
+
+
+def test_security_policy_routes_reports_to_the_fork():
+    """The fork must not send reporters only to the upstream advisory form."""
+    text = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+    assert "https://github.com/hbui290/Agent-Reach/security/advisories/new" in text
+    assert "Panniantong/Agent-Reach/security/advisories" not in text
+    primary = text.split("## Reporting a Vulnerability", 1)[1].split("##", 1)[0]
+    assert primary.index("hbui290/Agent-Reach") < primary.index(
+        "Panniantong/Agent-Reach"
+    )
+
+
+def test_cli_lookup_guidance_has_no_author_specific_conda_step():
+    """`conda run -n dl` is the upstream author's private environment."""
+    skill_dir = ROOT / "agent_reach" / "skill"
+    for path in (skill_dir / "SKILL.md", skill_dir / "SKILL_en.md", ROOT / "README.md"):
+        text = path.read_text(encoding="utf-8")
+        assert "conda run -n dl" not in text, path.relative_to(ROOT)
+    assert "→ conda" not in (ROOT / "README.md").read_text(encoding="utf-8")
+
+
+def test_social_reference_documents_xhs_download_and_instagram_limits():
+    """XHS media download is routed; Instagram limits describe current failures."""
+    text = (
+        ROOT / "agent_reach" / "skill" / "references" / "social.md"
+    ).read_text(encoding="utf-8")
+    assert 'opencli xiaohongshu download "NOTE_URL" --output' in text
+
+    instagram = text.split("## Instagram", 1)[1]
+    assert "Unexpected token '<'" in instagram
+    assert "不要循环重试" in instagram
+    assert "HTTP 400" not in instagram
+
+
+def test_video_reference_describes_current_polish_model():
+    """The polish docs must match the script's model, not the removed Llama."""
+    reference = (
+        ROOT / "agent_reach" / "skill" / "references" / "video.md"
+    ).read_text(encoding="utf-8")
+    script = (
+        ROOT / "agent_reach" / "scripts" / "transcribe_xiaoyuzhou.sh"
+    ).read_text(encoding="utf-8")
+    assert "Llama" not in reference
+    assert "Groq 上免费" not in reference
+    assert "POLISH_MODEL" in reference
+    assert "qwen/qwen3.8-27b" in reference
+    assert "qwen/qwen3.8-27b" in script
+
+
 def test_skill_routes_finance_and_documents_opencli_discovery():
     skills = (
         ROOT / "agent_reach" / "skill" / "SKILL.md",

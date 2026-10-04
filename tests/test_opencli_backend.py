@@ -70,6 +70,53 @@ def test_daemon_running_extension_connected_is_ready():
     assert "1.8.3" in opencli_summary(st)
 
 
+def test_multi_profile_top_level_false_but_profile_connected_is_ready():
+    daemon_status = {
+        "ok": True,
+        "pid": 1,
+        "extensionConnected": False,
+        "profiles": [
+            {"contextId": "a", "extensionConnected": False},
+            {"contextId": "b", "extensionConnected": True},
+        ],
+    }
+    st, _ = _status_with(ProbeResult("ok", output="1.8.8"), daemon_status)
+    assert st.daemon_running and st.extension_connected
+    assert st.ready
+
+
+def test_empty_profiles_list_is_not_connected():
+    daemon_status = {"ok": True, "pid": 1, "extensionConnected": False, "profiles": []}
+    st, _ = _status_with(ProbeResult("ok", output="1.8.8"), daemon_status)
+    assert not st.extension_connected
+    assert not st.ready
+
+
+def test_profiles_with_no_connected_entry_is_not_connected():
+    daemon_status = {
+        "ok": True,
+        "pid": 1,
+        "extensionConnected": False,
+        "profiles": [{"extensionConnected": False}, {"extensionConnected": "true"}, {}],
+    }
+    st, _ = _status_with(ProbeResult("ok", output="1.8.8"), daemon_status)
+    assert not st.extension_connected
+    assert not st.ready
+
+
+def test_profiles_of_wrong_type_is_not_connected():
+    for bad in ({"extensionConnected": True}, "extensionConnected", 1, None, [True, "x"]):
+        daemon_status = {
+            "ok": True,
+            "pid": 1,
+            "extensionConnected": False,
+            "profiles": bad,
+        }
+        st, _ = _status_with(ProbeResult("ok", output="1.8.8"), daemon_status)
+        assert not st.extension_connected, bad
+        assert not st.ready, bad
+
+
 def test_extension_never_installed_not_ready_with_store_guide():
     daemon_status = {"ok": True, "pid": 1, "extensionConnected": False}
     st, _ = _status_with(

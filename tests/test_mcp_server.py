@@ -183,3 +183,27 @@ def test_mcp_status_reports_stay_serial_after_cancellation(monkeypatch, cancel_f
         assert calls == [1, 2]
 
     asyncio.run(run())
+
+
+def test_mcp_install_hint_extra_exists_in_pyproject():
+    import re
+    from pathlib import Path
+
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.10
+        tomllib = pytest.importorskip("tomli")
+
+    root = Path(__file__).resolve().parents[1]
+    pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    extras = pyproject["project"]["optional-dependencies"]
+
+    hint_source = Path(mcp_server.__file__).read_text(encoding="utf-8")
+    hinted = set(re.findall(r"agent-reach\[(\w+)\]", hint_source))
+
+    assert "mcp" in extras
+    assert hinted, "MCP server hint no longer names an extra"
+    assert hinted <= set(extras)
+    # mcp 2.x removed the low-level Server decorators/list_tools API used here.
+    assert extras["mcp"] == ["mcp[cli]>=1.0,<2"]
+    assert "mcp[cli]>=1.0,<2" in extras["all"]

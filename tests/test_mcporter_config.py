@@ -51,6 +51,107 @@ def test_home_and_project_layers_are_merged(
     assert inspection.imports_unchecked is False
 
 
+def test_xdg_config_is_preferred_over_legacy_home(
+    monkeypatch, tmp_path, isolated_home
+):
+    monkeypatch.chdir(tmp_path)
+    xdg = tmp_path / "xdg"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    _write_config(
+        xdg / "mcporter" / "mcporter.json",
+        {"xdg-only": {"command": "xdg"}},
+    )
+    _write_config(
+        isolated_home / ".mcporter" / "mcporter.json",
+        {"legacy-only": {"command": "legacy"}},
+    )
+
+    inspection = inspect_mcporter_config()
+
+    assert inspection.server_names == {"xdg-only"}
+    assert inspection.source == "home"
+
+
+def test_xdg_jsonc_is_used_when_xdg_json_is_absent(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    xdg = tmp_path / "xdg"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    _write_config(
+        xdg / "mcporter" / "mcporter.jsonc",
+        {"xdg-jsonc": {"command": "xdg"}},
+    )
+
+    assert inspect_mcporter_config().server_names == {"xdg-jsonc"}
+
+
+def test_empty_xdg_dir_falls_back_to_legacy_home(
+    monkeypatch, tmp_path, isolated_home
+):
+    monkeypatch.chdir(tmp_path)
+    xdg = tmp_path / "xdg"
+    (xdg / "mcporter").mkdir(parents=True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    _write_config(
+        isolated_home / ".mcporter" / "mcporter.json",
+        {"legacy-only": {"command": "legacy"}},
+    )
+
+    inspection = inspect_mcporter_config()
+
+    assert inspection.server_names == {"legacy-only"}
+    assert inspection.source == "home"
+
+
+def test_relative_xdg_config_home_is_ignored(
+    monkeypatch, tmp_path, isolated_home
+):
+    monkeypatch.chdir(tmp_path)
+    _write_config(
+        tmp_path / "rel" / "mcporter" / "mcporter.json",
+        {"relative-xdg": {"command": "rel"}},
+    )
+    _write_config(
+        isolated_home / ".mcporter" / "mcporter.json",
+        {"legacy-only": {"command": "legacy"}},
+    )
+    monkeypatch.setenv("XDG_CONFIG_HOME", "rel")
+
+    assert inspect_mcporter_config().server_names == {"legacy-only"}
+
+
+def test_xdg_unset_or_empty_keeps_legacy_behavior(
+    monkeypatch, tmp_path, isolated_home
+):
+    monkeypatch.chdir(tmp_path)
+    _write_config(
+        isolated_home / ".mcporter" / "mcporter.json",
+        {"legacy-only": {"command": "legacy"}},
+    )
+
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    assert inspect_mcporter_config().server_names == {"legacy-only"}
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", "")
+    assert inspect_mcporter_config().server_names == {"legacy-only"}
+
+
+def test_xdg_symlink_config_is_rejected(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    xdg = tmp_path / "xdg"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    target = tmp_path / "real.json"
+    _write_config(target, {"exa": {"baseUrl": "https://example.test"}})
+    config_path = xdg / "mcporter" / "mcporter.json"
+    config_path.parent.mkdir(parents=True)
+    try:
+        config_path.symlink_to(target)
+    except OSError:
+        pytest.skip("symlinks are unavailable on this platform")
+
+    with pytest.raises(McporterConfigError, match="符号链接"):
+        inspect_mcporter_config()
+
+
 def test_explicit_config_is_the_only_layer(
     monkeypatch, tmp_path, isolated_home
 ):

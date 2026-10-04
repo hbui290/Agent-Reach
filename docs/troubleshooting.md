@@ -4,15 +4,15 @@
 
 **症状：** `agent-reach doctor` 显示雪球 ⚠️，报 `HTTP Error 400`
 
-**原因：** 雪球 API 需要登录 Cookie，无法通过匿名访问获取。
+**原因：** 雪球默认使用匿名 token（访问 xueqiu.com/hq 自动获取），无需登录 Cookie。若仍返回 400，通常是匿名 token 被限制，或已保存的旧 Cookie 失效。
 
-**解决方案：** 在 Chrome 里登录 xueqiu.com，然后运行：
+**解决方案：** 先升级到最新版并重试；仍为 400 时，在 Chrome 里登录 xueqiu.com，然后运行：
 
 ```bash
 agent-reach configure --from-browser chrome --platform xueqiu
 ```
 
-再次运行 `agent-reach doctor` 确认恢复 ✅。Cookie 过期后重新运行即可。
+再次运行 `agent-reach doctor` 确认恢复 ✅。Cookie 过期后重新运行即可。账号相关功能同样需要登录 Cookie。
 
 ---
 

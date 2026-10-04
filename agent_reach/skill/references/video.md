@@ -15,12 +15,18 @@ yt-dlp --dump-json "URL"
 ### 下载字幕
 
 ```bash
-# 下载字幕 (不下载视频)
-yt-dlp --write-sub --write-auto-sub --sub-lang "zh-Hans,zh,en" --skip-download -o "/tmp/%(id)s" "URL"
+# 先看有哪些字幕轨：手动字幕最好；自动字幕里 "<语言>-orig" 是原语言，其他语言多为机器翻译
+yt-dlp --list-subs --skip-download "URL"
+
+# 下载手动字幕 + 原语言自动字幕（zh/en 作为兜底），不下载视频
+yt-dlp --write-sub --write-auto-sub --sub-langs ".*-orig,zh-Hans,zh,en" --skip-download -o "/tmp/%(id)s" "URL"
 
 # 然后读取 .vtt 文件
 cat /tmp/VIDEO_ID.*.vtt
 ```
+
+总结时要说明文本来自手动字幕、原语言自动字幕（`-orig`）还是机器翻译。若没有 `-orig` 轨，
+与视频 `language`（见 `--dump-json`）一致的普通 `<语言>` 轨即为原语言。
 
 ### 获取评论
 
@@ -124,11 +130,11 @@ curl -s -b /tmp/bili_ck.txt -A "$UA" -e "https://www.bilibili.com/" \
 ### 转录单集播客（可选 --polish 增强标点）
 
 ```bash
-# 输出 Markdown 文件到 /tmp/。--polish 让 Llama 3.3 70B 给文稿补中文标点+合理分段
+# 输出 Markdown 文件到 /tmp/。--polish 让 Groq LLM（默认 `qwen/qwen3.8-27b`，可用 `POLISH_MODEL` 覆盖）给文稿补中文标点+合理分段
 ~/.agent-reach/tools/xiaoyuzhou/transcribe.sh --polish "https://www.xiaoyuzhoufm.com/episode/EPISODE_ID"
 ```
 
-> 转写 prompt 已要求 Whisper 输出中文标点；若标点效果仍不理想，可加 `--polish` 用 Groq 上免费的 Llama 3.3 70B 补标点+合理分段（9 分钟播客约多 ~7 秒）。每次转写多一轮 LLM 调用，按需使用。
+> 转写 prompt 已要求 Whisper 输出中文标点；若标点效果仍不理想，可加 `--polish` 用 Groq LLM（默认 `qwen/qwen3.8-27b`，可用 `POLISH_MODEL` 覆盖；仅 `qwen/` 开头的模型会发送 `reasoning_effort: none`）补标点+合理分段。每次转写多一轮 LLM 调用，按需使用；润色失败时保留原文并输出 `⚠️ 润色失败，已保留原文`（部分片段失败则输出 `⚠️ 部分润色失败`），转写本身仍视为成功。
 
 ### 前置要求
 

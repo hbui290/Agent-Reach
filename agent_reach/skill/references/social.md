@@ -25,6 +25,9 @@ opencli xiaohongshu feed -f yaml
 
 # 用户主页公开笔记
 opencli xiaohongshu user USER_ID -f yaml
+
+# 下载笔记图片/视频到本地（需完整 NOTE_URL 含 xsec_token 或 xhslink；会写入磁盘，先确认输出目录）
+opencli xiaohongshu download "NOTE_URL" --output /tmp/xhs-downloads
 ```
 
 > 要求 Chrome 打开且装了 OpenCLI 扩展。OpenCLI 只使用用户已经存在且明确控制
@@ -317,3 +320,5 @@ opencli instagram saved --limit 20 -f yaml
 ```
 
 > 要求 Chrome 打开且装了 OpenCLI 扩展，并已登录 instagram.com。`instagram search` 是用户搜索；读帖子需要先确定 username，再用 `instagram user USERNAME`。若出现 429 / login required，先让用户在 Chrome 里重新登录并降低频率。
+>
+> **已知限制（OpenCLI 1.8.8）**：`instagram user`（有时也包括 `search`）可能返回 HTML 页面、429 或 `Unexpected token '<'`（OpenCLI 上游未解决：#2456、#2553）。不要循环重试；如实告知限制，并建议升级 OpenCLI。

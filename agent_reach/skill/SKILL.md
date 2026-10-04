@@ -120,7 +120,7 @@ curl -s "https://r.jina.ai/URL"
 gh search repos "query" --sort stars --limit 10
 
 # YouTube 字幕（注意：B站不要用 yt-dlp，失败重试链见 video.md）
-yt-dlp --write-sub --write-auto-sub --skip-download -o "/tmp/%(id)s" "URL"
+yt-dlp --write-sub --write-auto-sub --sub-langs ".*-orig,en" --skip-download -o "/tmp/%(id)s" "URL"
 
 # V2EX 热门
 curl -s "https://www.v2ex.com/api/topics/hot.json" -H "User-Agent: agent-reach/1.0"
@@ -186,7 +186,6 @@ opencli instagram user USERNAME -f yaml        # 读指定用户最近帖子
 > 1. `agent-reach`（已在 PATH）
 > 2. `~/.agent-reach-venv/bin/agent-reach`（install.md 的默认 venv）
 > 3. `~/.local/bin/agent-reach`
-> 4. `conda run -n dl agent-reach`（仅当存在 conda 环境 `dl`，上游作者的环境）
 >
 > 都找不到时说明未安装，改用 host 工具；不为查询任务自行创建环境或重装。
 
