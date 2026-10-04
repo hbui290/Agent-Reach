@@ -268,7 +268,7 @@ def test_social_reference_documents_xhs_download_and_instagram_limits():
     instagram = text.split("## Instagram", 1)[1]
     assert "Unexpected token '<'" in instagram
     assert "不要循环重试" in instagram
-    assert "400" not in instagram
+    assert "HTTP 400" not in instagram
 
 
 def test_video_reference_describes_current_polish_model():

@@ -39,9 +39,9 @@ def inspect_mcporter_config(
     (``$XDG_CONFIG_HOME/mcporter/`` when that variable is a non-empty absolute
     path, then the legacy ``~/.mcporter/``; ``mcporter.json`` before
     ``mcporter.jsonc``) and then ``<cwd>/config/mcporter.json``; project
-    entries override duplicate home names. Only exact ``mcpServers`` keys are returned. Editor imports are
-    deliberately not opened because Doctor must not expand its
-    credential-read boundary.
+    entries override duplicate home names. Only exact ``mcpServers`` keys are
+    returned. Editor imports are deliberately not opened because Doctor must
+    not expand its credential-read boundary.
     """
     selected_layers = _select_config_layers(root_dir)
     if not selected_layers:

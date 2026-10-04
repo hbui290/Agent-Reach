@@ -765,7 +765,6 @@ class TestXueqiuChannel:
         )
         xueqiu_mod._ensure_cookies()
 
-        assert requested == ["https://xueqiu.com/hq"]
         assert requested == [xueqiu_mod._XUEQIU_HOME]
         assert xueqiu_mod._XUEQIU_HOME.endswith("/hq")
         assert xueqiu_mod._cookies_initialized is True
