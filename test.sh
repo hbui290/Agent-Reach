@@ -53,7 +53,8 @@ fi
 
 echo "[2/5] Installing this checkout and test dependencies"
 python -m pip install --quiet --upgrade pip
-python -m pip install --quiet -c "$REPO_ROOT/constraints.txt" -e "$REPO_ROOT[dev]"
+# Relative paths: Windows pip cannot parse Git Bash's /c/... absolute paths.
+( cd "$REPO_ROOT" && python -m pip install --quiet -c constraints.txt -e ".[dev]" )
 
 echo "[3/5] Verifying the installed CLI"
 agent-reach version

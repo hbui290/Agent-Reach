@@ -12,7 +12,9 @@ def test_integration_script_has_valid_shell_syntax(bash_executable):
 def test_integration_script_exercises_the_current_cli_contract():
     text = SCRIPT.read_text(encoding="utf-8")
 
-    assert 'pip install --quiet -c "$REPO_ROOT/constraints.txt"' in text
+    # Installs from inside the checkout so Windows pip never sees a /c/... path.
+    assert '( cd "$REPO_ROOT" && python -m pip install --quiet -c constraints.txt -e ".[dev]" )' in text
+    assert '"$REPO_ROOT[dev]"' not in text
     assert 'TEST_DIR=$(cd "$TEST_DIR" && pwd -P)' in text
     assert 'export HOME="$TEST_DIR/home"' in text
     assert "sys.version_info >= (3, 10)" in text
