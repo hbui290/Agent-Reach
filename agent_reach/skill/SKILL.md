@@ -177,13 +177,18 @@ opencli instagram user USERNAME -f yaml        # 读指定用户最近帖子
 
 ## 环境检查
 
-> 不假设固定 conda 环境或跨 host 共享安装。先在可用 Shell 中确认
-> `command -v agent-reach`；未找到时使用已有且确认的安装路径，或按环境规则降级。
-> 不为查询任务自行创建 Python 环境或重装工具。
+> 按下面顺序找到 `agent-reach`，用第一个可执行的，不要逐个询问用户：
+> 1. `agent-reach`（已在 PATH）
+> 2. `~/.agent-reach-venv/bin/agent-reach`（install.md 的默认 venv）
+> 3. `~/.local/bin/agent-reach`
+> 4. `conda run -n dl agent-reach`（仅当存在 conda 环境 `dl`，上游作者的环境）
+>
+> 都找不到时说明未安装，改用 host 工具；不为查询任务自行创建环境或重装。
 
 ```bash
-# 检查可用 channel 与每个平台当前激活的后端
-agent-reach doctor --json
+# 找到 CLI 并检查可用 channel 与每个平台当前激活的后端
+AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
+"${AR:-agent-reach}" doctor --json
 ```
 
 ## OpenCLI 适配器发现

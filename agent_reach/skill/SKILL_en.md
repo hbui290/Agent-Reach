@@ -182,13 +182,20 @@ opencli instagram user USERNAME -f yaml        # recent posts from one user
 
 ## Environment check
 
-Do not assume a fixed conda environment or shared installation across hosts.
-Check `command -v agent-reach` in an available shell. Use an already verified
-installation path or the host fallback; do not create environments/reinstall for a lookup.
+Locate `agent-reach` in this order and use the first executable; do not ask the
+user for each step:
+1. `agent-reach` (already on PATH)
+2. `~/.agent-reach-venv/bin/agent-reach` (default venv from install.md)
+3. `~/.local/bin/agent-reach`
+4. `conda run -n dl agent-reach` (only if a conda env named `dl` exists; upstream author's setup)
+
+If none exists, say it is not installed and use host tools; do not create
+environments or reinstall for a lookup.
 
 ```bash
-# Channel availability + which backend serves each platform
-agent-reach doctor --json
+# Locate the CLI, then check channel availability + active backend per platform
+AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
+"${AR:-agent-reach}" doctor --json
 ```
 
 When the user asks “help me configure Boss Zhipin” / “帮我配 Boss直聘”, read the
