@@ -143,11 +143,22 @@ class Config:
             )
         except PrivatePathError as exc:
             raise ConfigSecurityError(str(exc)) from exc
+        except UnicodeError:
+            raise ConfigError(f"配置文件不是有效的 UTF-8：{self.config_path}") from None
         if payload is None:
             self.data = {}
             return
 
-        loaded = yaml.safe_load(payload) or {}
+        try:
+            loaded = yaml.safe_load(payload) or {}
+        except yaml.YAMLError as exc:
+            # The parser error quotes the offending line, which may hold a
+            # secret: report only the position.
+            mark = getattr(exc, "problem_mark", None)
+            where = f"（第 {mark.line + 1} 行）" if mark is not None else ""
+            raise ConfigError(
+                f"配置文件 YAML 格式错误{where}：{self.config_path}"
+            ) from None
         if not isinstance(loaded, dict):
             raise ConfigError("配置文件顶层必须是对象")
         self.data = loaded
@@ -161,9 +172,10 @@ class Config:
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a config value. Also checks environment variables (uppercase)."""
-        # Config file first
-        if key in self.data:
-            return self.data[key]
+        # Config file first; a blank hand-edited value must not mask the env var
+        value = self.data.get(key)
+        if value is not None and value != "":
+            return value
         # Then env var (uppercase)
         env_val = os.environ.get(key.upper())
         if env_val:

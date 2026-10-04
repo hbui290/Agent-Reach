@@ -246,26 +246,33 @@ def main():
         print(f"Agent Reach v{__version__}")
         sys.exit(0)
 
-    if args.command == "doctor":
-        _cmd_doctor(args)
-    elif args.command == "check-update":
-        _cmd_check_update()
-    elif args.command == "watch":
-        _cmd_watch()
-    elif args.command == "setup":
-        _cmd_setup()
-    elif args.command == "install":
-        _cmd_install(args)
-    elif args.command == "configure":
-        _cmd_configure(args)
-    elif args.command == "uninstall":
-        _cmd_uninstall(args)
-    elif args.command == "skill":
-        _cmd_skill(args)
-    elif args.command == "format":
-        _cmd_format(args)
-    elif args.command == "transcribe":
-        _cmd_transcribe(args)
+    from agent_reach.config import ConfigError
+
+    try:
+        if args.command == "doctor":
+            _cmd_doctor(args)
+        elif args.command == "check-update":
+            if _cmd_check_update() == "error":
+                sys.exit(1)
+        elif args.command == "watch":
+            _cmd_watch()
+        elif args.command == "setup":
+            _cmd_setup()
+        elif args.command == "install":
+            _cmd_install(args)
+        elif args.command == "configure":
+            _cmd_configure(args)
+        elif args.command == "uninstall":
+            _cmd_uninstall(args)
+        elif args.command == "skill":
+            _cmd_skill(args)
+        elif args.command == "format":
+            _cmd_format(args)
+        elif args.command == "transcribe":
+            _cmd_transcribe(args)
+    except ConfigError as e:
+        print(f"❌ {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 # ── Command handlers ────────────────────────────────
@@ -504,7 +511,9 @@ def _install_skill(force: bool = True):
             os.environ.get("LC_MESSAGES", ""),
             os.environ.get("LANG", ""),
         )
-        if any(_is_english_locale(candidate) for candidate in locale_candidates):
+        # POSIX precedence: the first non-empty setting wins
+        chosen = next((value for value in locale_candidates if value), "")
+        if _is_english_locale(chosen):
             return "SKILL_en.md"
         return "SKILL.md"
 
@@ -590,7 +599,11 @@ def _install_skill(force: bool = True):
     if not installed:
         # No known skill directory found — create for .agents by default
         target = os.path.expanduser("~/.agents/skills/agent-reach")
-        os.makedirs(os.path.dirname(target), exist_ok=True)
+        try:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+        except OSError as e:
+            print(f"  Warning: Could not create {os.path.dirname(target)}: {e}")
+            return installed
         status = _copy_skill_dir(target)
         if status == "preserved":
             print(f"Skill already installed, preserving existing files: {target}")
@@ -1952,7 +1965,11 @@ def _configure_xhs_cookies(value) -> bool:
                 [mcporter, "call", "xiaohongshu.check_login_status()"],
                 capture_output=True, encoding="utf-8", errors="replace", timeout=15,
             )
-            if "已登录" in result.stdout or "logged" in result.stdout.lower():
+            out = result.stdout.lower()
+            logged_out = "未登录" in result.stdout or "not logged" in out
+            if result.returncode == 0 and not logged_out and (
+                "已登录" in result.stdout or "logged in" in out
+            ):
                 print("✅ Login verified!")
             else:
                 print("[!] Login check returned unexpected result:")
@@ -2413,6 +2430,15 @@ def _is_newer_version(remote: str, local: str) -> bool:
     return remote_version > local_version
 
 
+def _json_object(resp):
+    """Return the response's JSON object, or None for non-JSON/non-object bodies."""
+    try:
+        data = resp.json()
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def _cmd_check_update():
     """Check for newer versions on GitHub."""
     from agent_reach import __version__
@@ -2431,9 +2457,12 @@ def _cmd_check_update():
         return "error"
 
     if resp.status_code == 200:
-        data = resp.json()
-        latest = data.get("tag_name", "").lstrip("v")
-        body = data.get("body", "")
+        data = _json_object(resp)
+        if data is None:
+            print("[!] 无法检查更新（GitHub 返回了无法解析的响应）")
+            return "error"
+        latest = str(data.get("tag_name") or "").lstrip("v")
+        body = str(data.get("body") or "")
 
         if latest and _is_newer_version(latest, __version__):
             print(f"最新版本: v{latest} ← 有更新！")
@@ -2462,10 +2491,19 @@ def _cmd_check_update():
         print(f"[!] 无法检查更新（{_update_error_text(err2)}，已重试 {attempts + attempts2} 次）")
         return "error"
     if resp2.status_code == 200:
-        commit = resp2.json()
-        sha = commit.get("sha", "")[:7]
-        msg = commit.get("commit", {}).get("message", "").split("\n")[0]
-        date = commit.get("commit", {}).get("committer", {}).get("date", "")[:10]
+        commit = _json_object(resp2)
+        if commit is None:
+            print("[!] 无法检查更新（GitHub 返回了无法解析的响应）")
+            return "error"
+        info = commit.get("commit")
+        if not isinstance(info, dict):
+            info = {}
+        committer = info.get("committer")
+        if not isinstance(committer, dict):
+            committer = {}
+        sha = str(commit.get("sha") or "")[:7]
+        msg = str(info.get("message") or "").split("\n")[0]
+        date = str(committer.get("date") or "")[:10]
         print(f"最新提交: {sha} ({date}) {msg}")
         print()
         print(_UPDATE_INSTRUCTIONS)
@@ -2514,13 +2552,13 @@ def _cmd_watch():
         retries=2,
         headers=_github_auth_headers(config),
     )
-    if not err and resp and resp.status_code == 200:
-        data = resp.json()
-        latest = data.get("tag_name", "").lstrip("v")
+    data = _json_object(resp) if not err and resp and resp.status_code == 200 else None
+    if data is not None:
+        latest = str(data.get("tag_name") or "").lstrip("v")
         if latest and _is_newer_version(latest, __version__):
             update_available = True
             new_version = latest
-            release_body = data.get("body", "")
+            release_body = str(data.get("body") or "")
     elif err:
         issues.append(f"[!] 无法检查更新：{_update_error_text(err)}")
     elif resp is not None and resp.status_code != 200:
