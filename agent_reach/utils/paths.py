@@ -202,7 +202,7 @@ def get_ytdlp_config_dir() -> Path:
     """
 
     xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
-    config_home = Path(xdg_config_home) if xdg_config_home else Path.home() / ".config"
+    config_home = Path(xdg_config_home) if xdg_config_home else home_dir() / ".config"
     return config_home / "yt-dlp"
 
 

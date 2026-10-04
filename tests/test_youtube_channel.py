@@ -240,3 +240,15 @@ def test_check_ok_flags_missing_ffprobe_for_transcription():
     assert status == "ok"
     assert "ffprobe" in message
     assert "可转写音频" not in message
+
+
+def test_commented_js_runtime_line_does_not_count(tmp_path):
+    from agent_reach.channels.youtube import _has_js_runtime_config
+
+    cfg = tmp_path / "config"
+    cfg.write_text("# --js-runtimes node\n--no-mtime\n", encoding="utf-8")
+    assert _has_js_runtime_config(cfg) is False
+    cfg.write_text("--js-runtimes node  # enabled\n", encoding="utf-8")
+    assert _has_js_runtime_config(cfg) is True
+    cfg.write_text("--js-runtimes=deno\n", encoding="utf-8")
+    assert _has_js_runtime_config(cfg) is True

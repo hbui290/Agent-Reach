@@ -2,6 +2,7 @@
 """YouTube — check if yt-dlp is available with JS runtime."""
 
 import re
+import shlex
 import shutil
 
 from agent_reach.probe import probe_command
@@ -31,8 +32,12 @@ def _has_js_runtime_config(config_path) -> bool:
             config_path,
             max_bytes=1024 * 1024,
         )
-        return payload is not None and "--js-runtimes" in payload
-    except (OSError, UnicodeError, PrivatePathError):
+        if payload is None:
+            return False
+        # Commented-out lines do not configure yt-dlp.
+        tokens = shlex.split(payload, comments=True)
+        return any(t == "--js-runtimes" or t.startswith("--js-runtimes=") for t in tokens)
+    except (OSError, UnicodeError, PrivatePathError, ValueError):
         return False
 
 

@@ -823,6 +823,18 @@ class TestRedditChannel:
         assert status == "ok"
         assert ch.active_backend == "OpenCLI"
 
+    def test_undecodable_rdt_credential_is_warn(self, monkeypatch, isolated_home):
+        self._isolate(monkeypatch)
+        monkeypatch.setattr(shutil, "which", lambda _: "/usr/local/bin/rdt")
+        credential_path = isolated_home / ".config" / "rdt-cli" / "credential.json"
+        credential_path.parent.mkdir(parents=True)
+        credential_path.write_bytes(b"\xff\xfe\x00bad")
+        from agent_reach.channels.reddit import RedditChannel
+
+        status, msg = RedditChannel().check()
+        assert status == "warn"
+        assert "credential.json" in msg
+
     def test_saved_rdt_cookie_is_unverified_not_active(
         self, monkeypatch, isolated_home
     ):
@@ -908,6 +920,17 @@ class TestXiaoHongShuChannel:
         assert status == "warn"
         assert "桥接已连接" in message
         assert "登录态和实际命令未实时验证" in message
+
+    def test_undecodable_cli_cookie_is_warn(self, monkeypatch, isolated_home):
+        self._isolate(monkeypatch)
+        monkeypatch.setattr(shutil, "which", lambda _: "/usr/local/bin/xhs")
+        cookie_path = isolated_home / ".xiaohongshu-cli" / "cookies.json"
+        cookie_path.parent.mkdir()
+        cookie_path.write_bytes(b"\xff\xfe\x00bad")
+
+        status, msg = XiaoHongShuChannel().check()
+        assert status == "warn"
+        assert "cookies.json" in msg
 
     def test_saved_cli_cookie_is_unverified_not_active(
         self, monkeypatch, isolated_home
