@@ -257,6 +257,19 @@ def test_cli_lookup_guidance_has_no_author_specific_conda_step():
     assert "→ conda" not in (ROOT / "README.md").read_text(encoding="utf-8")
 
 
+def test_social_reference_documents_xhs_download_and_instagram_limits():
+    """XHS media download is routed; Instagram limits describe current failures."""
+    text = (
+        ROOT / "agent_reach" / "skill" / "references" / "social.md"
+    ).read_text(encoding="utf-8")
+    assert 'opencli xiaohongshu download "NOTE_URL" --output' in text
+
+    instagram = text.split("## Instagram", 1)[1]
+    assert "Unexpected token '<'" in instagram
+    assert "不要循环重试" in instagram
+    assert "400" not in instagram
+
+
 def test_skill_routes_finance_and_documents_opencli_discovery():
     skills = (
         ROOT / "agent_reach" / "skill" / "SKILL.md",
