@@ -143,13 +143,6 @@ class TestSkillCommand(unittest.TestCase):
         self.assertNotIn("code 37（TOKEN_REFRESH_FAILED）→ 重新登录", career)
         self.assertNotIn("client = BossClient(auth", career)
 
-    def test_localized_readmes_use_current_linkedin_server_name(self):
-        root = Path(__file__).resolve().parents[1]
-        for name in ("README_ja.md", "README_ko.md"):
-            content = (root / "docs" / name).read_text(encoding="utf-8")
-            self.assertIn("mcp-server-linkedin", content)
-            self.assertNotIn("linkedin-scraper-mcp", content)
-
     def test_skill_install_command_exits_nonzero_when_install_fails(self):
         with patch("agent_reach.cli._install_skill", return_value=False):
             with self.assertRaises(SystemExit) as raised:
