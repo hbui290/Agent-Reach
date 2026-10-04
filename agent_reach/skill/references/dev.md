@@ -10,7 +10,7 @@ GitHub 检索优先可用的专用 skill/连接；需要仓库、代码、Issue�
 gh auth status
 
 # 搜索
-gh search repos "query" --sort stars --limit 10
+gh search repos KEYWORD1 KEYWORD2 --sort stars --limit 10   # 关键词不要整体加引号：引号=精确短语匹配，常返回 0 条
 gh search code "query" --language python
 
 # 仓库（只为读代码时克隆到临时目录）
