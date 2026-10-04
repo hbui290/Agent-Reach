@@ -2235,13 +2235,32 @@ def _classify_github_response_error(resp):
     return None
 
 
-def _github_get_with_retry(url, timeout=10, retries=3, sleeper=time.sleep):
-    """GET GitHub API with retry/backoff and basic error classification."""
+_GITHUB_API_PREFIX = "https://api.github.com/"
+
+
+def _github_auth_headers(config):
+    """Authorization header from the optional ``github_token`` config value."""
+    token = config.get("github_token")
+    token = str(token).strip() if token else ""
+    if not token:
+        return None
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _github_get_with_retry(url, timeout=10, retries=3, sleeper=time.sleep, headers=None):
+    """GET GitHub API with retry/backoff and basic error classification.
+
+    ``headers`` may carry an Authorization token; it is only ever sent to
+    https://api.github.com/.
+    """
     import requests
+
+    if headers and not url.startswith(_GITHUB_API_PREFIX):
+        raise ValueError("refusing to send GitHub credentials to a non-GitHub-API URL")
 
     for attempt in range(1, retries + 1):
         try:
-            resp = requests.get(url, timeout=timeout)
+            resp = requests.get(url, timeout=timeout, headers=headers)
         except requests.exceptions.RequestException as exc:
             if attempt >= retries:
                 return None, _classify_update_error(exc), attempt
@@ -2249,6 +2268,13 @@ def _github_get_with_retry(url, timeout=10, retries=3, sleeper=time.sleep):
             continue
 
         err_kind = _classify_github_response_error(resp)
+        if (
+            err_kind == "rate_limit"
+            and resp.status_code in (403, 429)
+            and resp.headers.get("X-RateLimit-Remaining") == "0"
+        ):
+            # Quota exhausted until the reset time: retrying only wastes time.
+            return None, err_kind, attempt
         if err_kind in ("rate_limit", "server_error"):
             if attempt >= retries:
                 return None, err_kind, attempt
@@ -2300,13 +2326,17 @@ def _is_newer_version(remote: str, local: str) -> bool:
 def _cmd_check_update():
     """Check for newer versions on GitHub."""
     from agent_reach import __version__
+    from agent_reach.config import Config
 
     print(f"当前版本: v{__version__}")
+    headers = _github_auth_headers(Config(read_only=True))
     release_url = "https://api.github.com/repos/Panniantong/Agent-Reach/releases/latest"
     commit_url = "https://api.github.com/repos/Panniantong/Agent-Reach/commits/main"
 
     # Fetch latest release with retry/backoff.
-    resp, err, attempts = _github_get_with_retry(release_url, timeout=10, retries=3)
+    resp, err, attempts = _github_get_with_retry(
+        release_url, timeout=10, retries=3, headers=headers
+    )
     if err:
         print(f"[!] 无法检查更新（{_update_error_text(err)}，已重试 {attempts} 次）")
         return "error"
@@ -2336,7 +2366,9 @@ def _cmd_check_update():
         return "error"
 
     # No releases yet, fall back to latest main commit.
-    resp2, err2, attempts2 = _github_get_with_retry(commit_url, timeout=10, retries=2)
+    resp2, err2, attempts2 = _github_get_with_retry(
+        commit_url, timeout=10, retries=2, headers=headers
+    )
     if err2:
         print(f"[!] 无法检查更新（{_update_error_text(err2)}，已重试 {attempts + attempts2} 次）")
         return "error"
@@ -2391,6 +2423,7 @@ def _cmd_watch():
         "https://api.github.com/repos/Panniantong/Agent-Reach/releases/latest",
         timeout=10,
         retries=2,
+        headers=_github_auth_headers(config),
     )
     if not err and resp and resp.status_code == 200:
         data = resp.json()

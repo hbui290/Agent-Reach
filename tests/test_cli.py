@@ -481,6 +481,112 @@ class TestCheckUpdateRetry:
         assert attempts == 2
         assert sleeps == [3.0]
 
+    @pytest.mark.parametrize("status", [403, 429])
+    def test_exhausted_quota_returns_immediately_without_sleep(self, status):
+        sleeps = []
+
+        class R:
+            status_code = status
+            headers = {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "9999999999"}
+
+            @staticmethod
+            def json():
+                return {"message": "API rate limit exceeded"}
+
+        with patch("requests.get", return_value=R()) as mock_get:
+            resp, err, attempts = cli._github_get_with_retry(
+                "https://api.github.com/test",
+                retries=3,
+                sleeper=sleeps.append,
+            )
+
+        assert resp is None
+        assert err == "rate_limit"
+        assert attempts == 1
+        assert sleeps == []
+        assert mock_get.call_count == 1
+
+    def test_auth_header_sent_only_when_given(self):
+        class R:
+            status_code = 200
+            headers = {}
+
+            @staticmethod
+            def json():
+                return {}
+
+        with patch("requests.get", return_value=R()) as mock_get:
+            cli._github_get_with_retry("https://api.github.com/test")
+            assert mock_get.call_args.kwargs["headers"] is None
+            cli._github_get_with_retry(
+                "https://api.github.com/test", headers={"Authorization": "Bearer t"}
+            )
+            assert mock_get.call_args.kwargs["headers"] == {"Authorization": "Bearer t"}
+
+    def test_auth_header_never_sent_to_non_github_api_url(self):
+        with patch("requests.get") as mock_get:
+            with pytest.raises(ValueError):
+                cli._github_get_with_retry(
+                    "https://example.com/test", headers={"Authorization": "Bearer t"}
+                )
+        mock_get.assert_not_called()
+
+    def test_check_update_sends_configured_github_token(self, monkeypatch):
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        Config().set("github_token", "tok-123")
+
+        class R:
+            status_code = 200
+            headers = {}
+
+            @staticmethod
+            def json():
+                return {"tag_name": "v0.0.1", "body": ""}
+
+        with patch("requests.get", return_value=R()) as mock_get:
+            assert cli._cmd_check_update() == "up_to_date"
+
+        assert mock_get.call_args.kwargs["headers"] == {"Authorization": "Bearer tok-123"}
+        assert mock_get.call_args.args[0].startswith("https://api.github.com/")
+
+    def test_check_update_omits_auth_header_without_token(self, monkeypatch):
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+
+        class R:
+            status_code = 200
+            headers = {}
+
+            @staticmethod
+            def json():
+                return {"tag_name": "v0.0.1", "body": ""}
+
+        with patch("requests.get", return_value=R()) as mock_get:
+            cli._cmd_check_update()
+
+        assert mock_get.call_args.kwargs["headers"] is None
+
+    def test_watch_sends_configured_github_token(self, monkeypatch):
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        Config().set("github_token", "tok-456")
+        monkeypatch.setattr(
+            "agent_reach.doctor.check_all",
+            lambda config: {"web": {"status": "ok", "name": "任意网页", "message": "ok",
+                            "tier": 0, "backends": ["Jina Reader"], "active_backend": "Jina Reader"}},
+        )
+
+        class R:
+            status_code = 200
+            headers = {}
+
+            @staticmethod
+            def json():
+                return {"tag_name": "v0.0.1", "body": ""}
+
+        with patch("requests.get", return_value=R()) as mock_get:
+            cli._cmd_watch()
+
+        assert mock_get.call_args.kwargs["headers"] == {"Authorization": "Bearer tok-456"}
+
     def test_classify_rate_limit_from_403(self):
         class R:
             status_code = 403
