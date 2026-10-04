@@ -13,8 +13,9 @@ gh auth status
 gh search repos "query" --sort stars --limit 10
 gh search code "query" --language python
 
-# 仓库
+# 仓库（只为读代码时克隆到临时目录）
 gh repo view owner/repo
+gh repo clone owner/repo /tmp/repo
 
 # Issues / Pull Requests
 gh issue list -R owner/repo --state open
@@ -43,7 +44,6 @@ gh issue list --repo owner/repo --json number,title --jq '.[] | "\(.number): \(.
 
 ```bash
 gh auth login
-gh repo clone owner/repo
 gh repo create my-repo --private
 gh repo fork owner/repo
 gh repo fork owner/repo --clone
