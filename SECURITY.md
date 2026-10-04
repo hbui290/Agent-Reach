@@ -13,8 +13,10 @@ it responsibly by using GitHub's private security advisory feature:
 
 👉 **[Report a vulnerability](https://github.com/hbui290/Agent-Reach/security/advisories/new)**
 
-Vulnerabilities in code that exists only upstream may also be reported to
-[Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach/security/advisories/new).
+For code that exists only upstream, see
+[Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach). Its
+private vulnerability reporting is disabled, so ask the maintainers there for a
+private channel without posting exploit details publicly.
 
 Please do NOT open a public GitHub issue for security vulnerabilities.
 

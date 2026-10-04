@@ -242,6 +242,7 @@ def test_security_policy_routes_reports_to_the_fork():
     """The fork must not send reporters only to the upstream advisory form."""
     text = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
     assert "https://github.com/hbui290/Agent-Reach/security/advisories/new" in text
+    assert "Panniantong/Agent-Reach/security/advisories" not in text
     primary = text.split("## Reporting a Vulnerability", 1)[1].split("##", 1)[0]
     assert primary.index("hbui290/Agent-Reach") < primary.index(
         "Panniantong/Agent-Reach"
