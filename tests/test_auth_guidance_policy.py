@@ -221,6 +221,14 @@ def test_youtube_subtitle_commands_prefer_original_language_tracks():
         assert '--sub-langs ".*-orig' in text, path.relative_to(ROOT)
 
 
+def test_update_guide_says_doctor_does_not_install_skills():
+    """Doctor is read-only; only `skill --install` writes skill files."""
+    text = (ROOT / "docs" / "update.md").read_text(encoding="utf-8")
+    assert "makes sure an Agent Reach skill" not in text
+    assert "`agent-reach doctor` is read-only" in text
+    assert "agent-reach skill --install" in text
+
+
 def test_skill_routes_finance_and_documents_opencli_discovery():
     skills = (
         ROOT / "agent_reach" / "skill" / "SKILL.md",
