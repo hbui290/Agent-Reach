@@ -421,6 +421,45 @@ def test_polish_python_honors_polish_model_env(tmp_path, monkeypatch, capsys):
     )
 
     assert requests[0]["model"] == "custom/model"
+    assert "reasoning_effort" not in requests[0]
+
+
+def test_polish_python_sends_reasoning_effort_only_for_qwen_models(
+    tmp_path, monkeypatch, capsys
+):
+    requests, _result, _out = _run_polish_python(
+        tmp_path,
+        monkeypatch,
+        capsys,
+        lambda _req: _FakeResponse("今天天气不错，我们出去玩。"),
+        polish_model="qwen/qwen3-32b",
+    )
+
+    assert requests[0]["reasoning_effort"] == "none"
+
+
+def test_polish_python_partial_failure_reports_partial(tmp_path, monkeypatch, capsys):
+    import io
+    import urllib.error
+
+    calls = []
+
+    def urlopen(req):
+        calls.append(req)
+        if len(calls) == 1:
+            return _FakeResponse("被截断", finish_reason="length")
+        if len(calls) == 2:
+            return _FakeResponse("今天天气不，")
+        raise urllib.error.HTTPError(req.full_url, 500, "boom", {}, io.BytesIO(b"{}"))
+
+    requests, result, out = _run_polish_python(tmp_path, monkeypatch, capsys, urlopen)
+
+    assert len(requests) == 3
+    assert result == "今天天气不，错我们出去玩\n"  # 左半润色，右半保留原文
+    assert "⚠️ 部分润色失败" in out
+    assert "HTTP 500" in out
+    assert "润色失败，已保留原文" not in out
+    assert "✅" not in out
 
 
 def test_polish_python_http_error_keeps_raw_text_and_warns(tmp_path, monkeypatch, capsys):

@@ -295,6 +295,7 @@ OUT = os.environ["OUT_FILE"]
 MODEL = os.environ.get("POLISH_MODEL") or "qwen/qwen3.8-27b"
 MAX_DEPTH = 3
 FALLBACKS = []  # 每次回退到原文的原因
+SUCCESSES = [0]  # 成功润色的片段数
 PROMPT_TMPL = (
     "以下是一段中文普通话播客的语音转写片段，由于 Whisper 对中文标点支持较弱，"
     "整段几乎没有标点。请你**只做一件事**：在合适位置补充中文标点（，。！？：；），"
@@ -308,13 +309,15 @@ PROMPT_TMPL = (
 )
 
 def call_groq(text):
-    body = json.dumps({
+    body = {
         "model": MODEL,
         "temperature": 0.2,
         "max_completion_tokens": 8192,
-        "reasoning_effort": "none",
         "messages": [{"role": "user", "content": PROMPT_TMPL.format(text)}],
-    }).encode()
+    }
+    if MODEL.startswith("qwen/"):
+        body["reasoning_effort"] = "none"  # 仅 Qwen 系列接受该参数
+    body = json.dumps(body).encode()
     req = urllib.request.Request(
         "https://api.groq.com/openai/v1/chat/completions",
         data=body,
@@ -346,6 +349,7 @@ def polish(text, depth=0):
         FALLBACKS.append(type(e).__name__ + ": " + str(e)[:80])
         return text
     if fr != "length" or depth >= MAX_DEPTH:
+        SUCCESSES[0] += 1
         return out
     # 输出被截断：从中点切两半递归处理
     mid = len(text) // 2
@@ -354,7 +358,9 @@ def polish(text, depth=0):
 content = open(IN, encoding="utf-8").read().strip()
 result = polish(content)
 open(OUT, "w", encoding="utf-8").write(result + "\n")
-if FALLBACKS:
+if FALLBACKS and SUCCESSES[0]:
+    print(f"⚠️ 部分润色失败，失败片段已保留原文 ({'; '.join(sorted(set(FALLBACKS)))})")
+elif FALLBACKS:
     print(f"⚠️ 润色失败，已保留原文 ({'; '.join(sorted(set(FALLBACKS)))})")
 else:
     print(f"✅ ({len(result)} 字)")

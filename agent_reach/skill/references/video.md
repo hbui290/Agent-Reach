@@ -134,7 +134,7 @@ curl -s -b /tmp/bili_ck.txt -A "$UA" -e "https://www.bilibili.com/" \
 ~/.agent-reach/tools/xiaoyuzhou/transcribe.sh --polish "https://www.xiaoyuzhoufm.com/episode/EPISODE_ID"
 ```
 
-> 转写 prompt 已要求 Whisper 输出中文标点；若标点效果仍不理想，可加 `--polish` 用 Groq LLM（默认 `qwen/qwen3.8-27b`，可用 `POLISH_MODEL` 覆盖）补标点+合理分段。每次转写多一轮 LLM 调用，按需使用；润色失败时保留原文并输出 `⚠️ 润色失败，已保留原文`，转写本身仍视为成功。
+> 转写 prompt 已要求 Whisper 输出中文标点；若标点效果仍不理想，可加 `--polish` 用 Groq LLM（默认 `qwen/qwen3.8-27b`，可用 `POLISH_MODEL` 覆盖；仅 `qwen/` 开头的模型会发送 `reasoning_effort: none`）补标点+合理分段。每次转写多一轮 LLM 调用，按需使用；润色失败时保留原文并输出 `⚠️ 润色失败，已保留原文`（部分片段失败则输出 `⚠️ 部分润色失败`），转写本身仍视为成功。
 
 ### 前置要求
 
