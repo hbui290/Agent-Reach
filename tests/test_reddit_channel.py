@@ -224,3 +224,53 @@ def test_check_no_backend_installed_is_off():
     assert status == "off"
     assert "零配置" in message
     assert channel.active_backend is None
+
+
+def _session_jwt(expires_in_seconds):
+    """A reddit_session-shaped JWT whose payload declares an expiry."""
+    import base64
+
+    def enc(obj):
+        return base64.urlsafe_b64encode(json.dumps(obj).encode()).rstrip(b"=").decode()
+
+    claims = {"sub": "t2_example", "exp": time.time() + expires_in_seconds}
+    return f"{enc({'alg': 'RS256'})}.{enc(claims)}.sig"
+
+
+def _check_with_session(isolated_home, session, saved_at):
+    path = isolated_home / ".config" / "rdt-cli" / "credential.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps({"cookies": {"reddit_session": session}, "saved_at": saved_at}),
+        encoding="utf-8",
+    )
+    with patch("shutil.which", return_value="/usr/local/bin/rdt"):
+        return RedditChannel()._check_rdt()
+
+
+def test_old_file_with_valid_jwt_reports_expiry_not_age(isolated_home):
+    status, message = _check_with_session(
+        isolated_home, _session_jwt(90 * 86400), time.time() - 30 * 86400
+    )
+    assert status == "warn"
+    assert "超过 7 天" not in message
+    assert "天后过期" in message
+    assert "建议尽快" not in message
+
+
+def test_fresh_file_with_expired_jwt_reports_expired(isolated_home):
+    status, message = _check_with_session(
+        isolated_home, _session_jwt(-2 * 86400), time.time()
+    )
+    assert status == "warn"
+    assert "已于" in message and "过期" in message
+
+
+def test_jwt_expiring_soon_asks_for_reexport(isolated_home):
+    _, message = _check_with_session(isolated_home, _session_jwt(86400), time.time())
+    assert "建议尽快" in message
+
+
+def test_non_jwt_cookie_keeps_file_age_fallback(isolated_home):
+    _, message = _check_with_session(isolated_home, "opaque", time.time() - 8 * 86400)
+    assert "超过 7 天" in message

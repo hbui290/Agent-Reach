@@ -9,7 +9,9 @@ users who already hold credentials). Every working backend rides a
 logged-in session: OpenCLI reuses the browser's, rdt-cli imports cookies.
 """
 
+import base64
 import json
+import math
 import shutil
 import time
 from pathlib import Path
@@ -22,10 +24,40 @@ from agent_reach.utils.paths import (
 from .base import Channel
 
 _CREDENTIAL_FILE = "~/.config/rdt-cli/credential.json"
+#: Fallback age limit, used only when the cookie does not state its own expiry.
 _CREDENTIAL_TTL_SECONDS = 7 * 86400
+#: Below this, warn that a re-export is due soon.
+_EXPIRY_WARN_SECONDS = 3 * 86400
 _MAX_CREDENTIAL_BYTES = 1024 * 1024
 # Pinned to the 0.4.2 state — PyPI still only has 0.4.1 (upstream issue #10).
 _RDT_GIT_SOURCE = "git+https://github.com/public-clis/rdt-cli.git@5e4fb3720d5c174e976cd425ccc3b879d52cac66"
+
+def _session_cookie_expiry(token: object) -> float | None:
+    """Seconds until ``reddit_session`` expires, or None if it does not say.
+
+    ``reddit_session`` is a JWT whose payload carries ``exp``; ``saved_at`` only
+    records when the file was written. The signature is deliberately not
+    verified: this phrases a doctor message and must never gate access.
+    """
+    if not isinstance(token, str):
+        return None
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    payload = parts[1] + "=" * (-len(parts[1]) % 4)
+    try:
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+    except ValueError:
+        return None
+    if not isinstance(claims, dict):
+        return None
+    expiry = claims.get("exp")
+    if isinstance(expiry, bool) or not isinstance(expiry, (int, float)):
+        return None
+    if not math.isfinite(expiry):
+        return None
+    return expiry - time.time()
+
 
 class RedditChannel(Channel):
     name = "reddit"
@@ -121,6 +153,26 @@ class RedditChannel(Channel):
         cookies = data.get("cookies")
         if not isinstance(cookies, dict) or not cookies.get("reddit_session"):
             return "warn", self._rdt_login_hint()
+
+        # Prefer the cookie's own expiry; file age is only a fallback.
+        remaining = _session_cookie_expiry(cookies.get("reddit_session"))
+        if remaining is not None:
+            if remaining <= 0:
+                return "warn", (
+                    f"rdt-cli 已安装，但 reddit_session 已于 {-remaining / 86400:.1f} "
+                    "天前过期；请用 Cookie-Editor 重新导出。Doctor 不会自动读取"
+                    "浏览器或刷新文件。"
+                )
+            due = (
+                "，建议尽快用 Cookie-Editor 重新导出"
+                if remaining < _EXPIRY_WARN_SECONDS
+                else ""
+            )
+            return "warn", (
+                f"rdt-cli 已安装，reddit_session 约 {remaining / 86400:.1f} 天后过期"
+                f"{due}；Doctor 为避免上游自动刷新浏览器 Cookie，不执行 "
+                "`rdt status`，因此未实时验证。"
+            )
 
         saved_at = data.get("saved_at")
         if isinstance(saved_at, (int, float)) and (
