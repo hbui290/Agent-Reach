@@ -405,6 +405,7 @@ if [ -z "$OUTPUT" ]; then
     fi
 fi
 
+FINAL="$WORK_DIR/final.txt"
 {
     echo "# $TITLE"
     echo ""
@@ -426,7 +427,16 @@ fi
         fi
         echo ""
     done
-} > "$OUTPUT"
+} > "$FINAL"
+
+# 先完整写到同目录临时文件再替换：写入失败时不截断旧文件，也不丢掉已转录内容
+PARTIAL="$OUTPUT.partial.$$"
+if ! cat "$FINAL" > "$PARTIAL" || ! mv -f "$PARTIAL" "$OUTPUT"; then
+    rm -f "$PARTIAL"
+    echo "❌ 无法写入 ${OUTPUT}，文字稿输出如下：" >&2
+    cat "$FINAL"
+    exit 1
+fi
 
 TOTAL_CHARS=$(wc -m < "$OUTPUT")
 echo ""

@@ -1659,10 +1659,37 @@ def _cmd_transcribe(args):
         sys.exit(1)
 
     if args.output:
-        Path(args.output).write_text(text + "\n", encoding="utf-8")
+        try:
+            _write_text_atomic(Path(args.output), text + "\n")
+        except OSError as e:
+            # The transcript cost API quota: never lose it on a write failure.
+            print(f"❌ Could not write {args.output}: {e}", file=sys.stderr)
+            print(text)
+            sys.exit(1)
         print(f"✅ Transcript written to {args.output}")
     else:
         print(text)
+
+
+def _write_text_atomic(target: "Path", text: str) -> None:
+    """Replace target only after the new content is fully on disk."""
+    import tempfile
+
+    fd, tmp = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=target.parent or None
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, target)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _parse_twitter_cookie_input(value: str):
