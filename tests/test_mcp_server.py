@@ -204,4 +204,6 @@ def test_mcp_install_hint_extra_exists_in_pyproject():
     assert "mcp" in extras
     assert hinted, "MCP server hint no longer names an extra"
     assert hinted <= set(extras)
-    assert extras["mcp"] == ["mcp[cli]>=1.0"]
+    # mcp 2.x removed the low-level Server decorators/list_tools API used here.
+    assert extras["mcp"] == ["mcp[cli]>=1.0,<2"]
+    assert "mcp[cli]>=1.0,<2" in extras["all"]
