@@ -36,9 +36,10 @@ def inspect_mcporter_config(
 
     An explicit ``MCPORTER_CONFIG`` is a single layer. Otherwise mcporter
     supported mcporter versions load the first home config
-    (``~/.mcporter/mcporter.json`` / ``mcporter.jsonc``) and then
-    ``<cwd>/config/mcporter.json``; project entries override duplicate home
-    names. Only exact ``mcpServers`` keys are returned. Editor imports are
+    (``$XDG_CONFIG_HOME/mcporter/`` when that variable is a non-empty absolute
+    path, then the legacy ``~/.mcporter/``; ``mcporter.json`` before
+    ``mcporter.jsonc``) and then ``<cwd>/config/mcporter.json``; project
+    entries override duplicate home names. Only exact ``mcpServers`` keys are returned. Editor imports are
     deliberately not opened because Doctor must not expand its
     credential-read boundary.
     """
@@ -94,9 +95,17 @@ def _select_config_layers(
         return [(Path(os.path.abspath(os.fspath(expanded))), "explicit")]
 
     layers = []
-    home_base = Path.home() / ".mcporter"
-    for name in ("mcporter.json", "mcporter.jsonc"):
-        candidate = home_base / name
+    home_bases = []
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME", "")
+    if xdg_config_home and os.path.isabs(xdg_config_home):
+        home_bases.append(Path(xdg_config_home) / "mcporter")
+    home_bases.append(Path.home() / ".mcporter")
+    home_candidates = [
+        base / name
+        for base in home_bases
+        for name in ("mcporter.json", "mcporter.jsonc")
+    ]
+    for candidate in home_candidates:
         if os.path.lexists(candidate):
             layers.append((candidate, "home"))
             break
