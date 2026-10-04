@@ -231,6 +231,43 @@ def test_store_install_scan_includes_edge_profiles(tmp_path, monkeypatch):
     assert _extension_installed_on_disk()
 
 
+def test_store_install_scan_includes_vivaldi_profiles(tmp_path, monkeypatch):
+    """Vivaldi is Chromium-based; its profiles must be scanned too (#734)."""
+    vivaldi_root = tmp_path / "Library" / "Application Support" / "Vivaldi"
+    (
+        vivaldi_root
+        / "Default"
+        / "Extensions"
+        / OPENCLI_EXTENSION_ID
+        / "1.0.0"
+    ).mkdir(parents=True)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+
+    assert _extension_installed_on_disk()
+
+
+def test_store_install_scan_includes_windows_vivaldi(tmp_path, monkeypatch):
+    local_app_data = tmp_path / "AppData" / "Local"
+    (
+        local_app_data
+        / "Vivaldi"
+        / "User Data"
+        / "Default"
+        / "Extensions"
+        / OPENCLI_EXTENSION_ID
+        / "1.0.0"
+    ).mkdir(parents=True)
+
+    monkeypatch.setattr(
+        "agent_reach.backends.opencli._CHROME_PROFILE_ROOTS", ()
+    )
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app_data))
+
+    assert _extension_installed_on_disk()
+
+
 def test_unpacked_scan_requires_manifest_but_does_not_claim_browser_load(
     tmp_path, monkeypatch
 ):
