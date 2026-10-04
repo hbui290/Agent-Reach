@@ -2,8 +2,9 @@
 # 小宇宙播客转文字脚本
 # 用法: bash transcribe.sh [--polish] <小宇宙链接> [输出文件路径]
 # 环境变量: GROQ_API_KEY (必须)
+#           POLISH_MODEL (可选，润色模型，默认 qwen/qwen3.8-27b)
 #
-# --polish: 转录后调用 Groq Llama 3.3 70B 给文稿补中文标点+合理分段
+# --polish: 转录后调用 Groq LLM（默认 qwen/qwen3.8-27b）给文稿补中文标点+合理分段
 #           （Whisper 对中文标点支持较弱，开启后阅读体验显著更好）
 
 set -e
@@ -274,15 +275,16 @@ for i in $(seq 0 $((NUM_CHUNKS - 1))); do
     echo "✅ ($CHARS 字)"
 done
 
-# Step 6.5 (可选): 用 Llama 3.3 70B 给文稿补标点+分段
+# Step 6.5 (可选): 用 Groq LLM 给文稿补标点+分段
 if [ "$POLISH" = "1" ]; then
     ensure_python || exit 1
-    echo "✨ 正在润色（Llama 3.3 70B 加标点+分段）..."
+    echo "✨ 正在润色（Groq ${POLISH_MODEL:-qwen/qwen3.8-27b} 加标点+分段）..."
     for i in $(seq 0 $((NUM_CHUNKS - 1))); do
         echo -n "   段 $((i+1))/$NUM_CHUNKS... "
         IN_FILE="$WORK_DIR/transcript_${i}.txt" \
         OUT_FILE="$WORK_DIR/polished_${i}.txt" \
         GROQ_API_KEY="$GROQ_API_KEY" \
+        POLISH_MODEL="${POLISH_MODEL:-}" \
         "${PYTHON_CMD[@]}" <<'PY'
 import json, os, sys, urllib.request, urllib.error
 
@@ -290,8 +292,9 @@ KEY = os.environ["GROQ_API_KEY"]
 IN = os.environ["IN_FILE"]
 OUT = os.environ["OUT_FILE"]
 
-MODEL = "llama-3.3-70b-versatile"
+MODEL = os.environ.get("POLISH_MODEL") or "qwen/qwen3.8-27b"
 MAX_DEPTH = 3
+FALLBACKS = []  # 每次回退到原文的原因
 PROMPT_TMPL = (
     "以下是一段中文普通话播客的语音转写片段，由于 Whisper 对中文标点支持较弱，"
     "整段几乎没有标点。请你**只做一件事**：在合适位置补充中文标点（，。！？：；），"
@@ -309,6 +312,7 @@ def call_groq(text):
         "model": MODEL,
         "temperature": 0.2,
         "max_completion_tokens": 8192,
+        "reasoning_effort": "none",
         "messages": [{"role": "user", "content": PROMPT_TMPL.format(text)}],
     }).encode()
     req = urllib.request.Request(
@@ -325,19 +329,21 @@ def call_groq(text):
     if len(payload) > 32 * 1024 * 1024:
         raise ValueError("polish response exceeds 32 MiB limit")
     resp = json.loads(payload)
-    return (
-        resp["choices"][0]["message"]["content"].strip(),
-        resp["choices"][0].get("finish_reason"),
-    )
+    content = (resp["choices"][0]["message"]["content"] or "").strip()
+    if not content:
+        raise ValueError("empty content")
+    return content, resp["choices"][0].get("finish_reason")
 
 def polish(text, depth=0):
     try:
         out, fr = call_groq(text)
     except urllib.error.HTTPError as e:
         sys.stderr.write(f"polish HTTP {e.code}: {e.read().decode(errors='replace')[:200]}\n")
+        FALLBACKS.append(f"HTTP {e.code}")
         return text  # fallback to raw
     except Exception as e:
         sys.stderr.write(f"polish error: {e}\n")
+        FALLBACKS.append(type(e).__name__ + ": " + str(e)[:80])
         return text
     if fr != "length" or depth >= MAX_DEPTH:
         return out
@@ -348,7 +354,10 @@ def polish(text, depth=0):
 content = open(IN, encoding="utf-8").read().strip()
 result = polish(content)
 open(OUT, "w", encoding="utf-8").write(result + "\n")
-print(f"✅ ({len(result)} 字)")
+if FALLBACKS:
+    print(f"⚠️ 润色失败，已保留原文 ({'; '.join(sorted(set(FALLBACKS)))})")
+else:
+    print(f"✅ ({len(result)} 字)")
 PY
     done
 fi
@@ -370,7 +379,7 @@ fi
     echo "时长: ${DURATION_MIN}分${DURATION_SEC}秒"
     echo "转录时间: $(date '+%Y-%m-%d %H:%M')"
     if [ "$POLISH" = "1" ]; then
-        echo "润色: Groq Llama 3.3 70B"
+        echo "润色: Groq ${POLISH_MODEL:-qwen/qwen3.8-27b}"
     fi
     echo ""
     echo "---"

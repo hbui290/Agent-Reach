@@ -328,3 +328,132 @@ fi
     assert len(curl_calls) == 2
     assert all("api.groq.com" not in call for call in curl_calls)
     _assert_work_dir_cleaned(temp_root)
+
+
+def test_transcribe_script_polish_uses_configurable_current_model():
+    text = TRANSCRIBE_SCRIPT.read_text(encoding="utf-8")
+
+    assert "llama-3.3" not in text
+    assert "Llama 3.3" not in text
+    assert "POLISH_MODEL" in text
+    assert "qwen/qwen3.8-27b" in text
+    assert "reasoning_effort" in text
+
+
+def _polish_python_source() -> str:
+    text = TRANSCRIBE_SCRIPT.read_text(encoding="utf-8")
+    marker = 'POLISH_MODEL="${POLISH_MODEL:-}"'
+    start = text.index("<<'PY'", text.index(marker)) + len("<<'PY'\n")
+    return text[start : text.index("\nPY\n", start) + 1]
+
+
+def _run_polish_python(tmp_path, monkeypatch, capsys, urlopen, polish_model=None):
+    import io
+    import json
+    import urllib.request
+
+    in_file = tmp_path / "in.txt"
+    out_file = tmp_path / "out.txt"
+    in_file.write_text("今天天气不错我们出去玩", encoding="utf-8")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("IN_FILE", str(in_file))
+    monkeypatch.setenv("OUT_FILE", str(out_file))
+    if polish_model is None:
+        monkeypatch.delenv("POLISH_MODEL", raising=False)
+    else:
+        monkeypatch.setenv("POLISH_MODEL", polish_model)
+    requests = []
+
+    def fake_urlopen(req, timeout=None):
+        requests.append(json.loads(req.data))
+        return urlopen(req)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr("sys.stderr", io.StringIO())
+    source = _polish_python_source()
+    compile(source, "polish.py", "exec")
+    exec(source, {"__name__": "__main__"})
+    return requests, out_file.read_text(encoding="utf-8"), capsys.readouterr().out
+
+
+class _FakeResponse:
+    def __init__(self, content, finish_reason="stop"):
+        import json
+
+        self._payload = json.dumps(
+            {"choices": [{"message": {"content": content}, "finish_reason": finish_reason}]}
+        ).encode()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def read(self, _limit=None):
+        return self._payload
+
+
+def test_polish_python_success_uses_default_model_and_no_reasoning(
+    tmp_path, monkeypatch, capsys
+):
+    requests, result, out = _run_polish_python(
+        tmp_path,
+        monkeypatch,
+        capsys,
+        lambda _req: _FakeResponse("今天天气不错，我们出去玩。"),
+    )
+
+    assert requests[0]["model"] == "qwen/qwen3.8-27b"
+    assert requests[0]["reasoning_effort"] == "none"
+    assert result == "今天天气不错，我们出去玩。\n"
+    assert "✅" in out
+    assert "⚠️" not in out
+
+
+def test_polish_python_honors_polish_model_env(tmp_path, monkeypatch, capsys):
+    requests, _result, _out = _run_polish_python(
+        tmp_path,
+        monkeypatch,
+        capsys,
+        lambda _req: _FakeResponse("今天天气不错，我们出去玩。"),
+        polish_model="custom/model",
+    )
+
+    assert requests[0]["model"] == "custom/model"
+
+
+def test_polish_python_http_error_keeps_raw_text_and_warns(tmp_path, monkeypatch, capsys):
+    import io
+    import urllib.error
+
+    def raise_http_error(req):
+        raise urllib.error.HTTPError(
+            req.full_url, 404, "Not Found", {}, io.BytesIO(b'{"error":"model_not_found"}')
+        )
+
+    requests, result, out = _run_polish_python(
+        tmp_path, monkeypatch, capsys, raise_http_error
+    )
+
+    assert len(requests) == 1
+    assert result == "今天天气不错我们出去玩\n"
+    assert "⚠️ 润色失败，已保留原文" in out
+    assert "HTTP 404" in out
+    assert "✅" not in out
+
+
+def test_polish_python_empty_content_falls_back_without_recursion(
+    tmp_path, monkeypatch, capsys
+):
+    requests, result, out = _run_polish_python(
+        tmp_path,
+        monkeypatch,
+        capsys,
+        lambda _req: _FakeResponse("   ", finish_reason="length"),
+    )
+
+    assert len(requests) == 1
+    assert result == "今天天气不错我们出去玩\n"
+    assert "⚠️ 润色失败，已保留原文" in out
+    assert "✅" not in out
