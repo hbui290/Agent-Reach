@@ -220,6 +220,46 @@ def test_transcribe_script_uses_secure_temp_and_bounded_curl_calls():
     assert api_response_limit <= 32 * 1024 * 1024
 
 
+@pytest.mark.parametrize("stored", ["gsk_plain", "'gsk_quoted'"])
+def test_transcribe_script_reads_config_key_without_pyyaml(
+    tmp_path, stored, bash_executable
+):
+    env, curl_log, temp_root, _ = _script_env(
+        tmp_path,
+        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$CURL_LOG\"\nexit 42\n",
+    )
+    del env["GROQ_API_KEY"]
+    home = tmp_path / "home"
+    (home / ".agent-reach").mkdir(parents=True)
+    (home / ".agent-reach" / "config.yaml").write_text(
+        f"groq_api_key: {stored}\n", encoding="utf-8"
+    )
+    # Make `import yaml` fail, like a system Python without PyYAML.
+    no_yaml = tmp_path / "no-yaml"
+    no_yaml.mkdir()
+    (no_yaml / "yaml.py").write_text("raise ImportError('no yaml')\n", encoding="utf-8")
+    env["HOME"] = _bash_path(home)
+    env["PYTHONPATH"] = str(no_yaml)
+
+    result = subprocess.run(
+        [
+            bash_executable,
+            TRANSCRIBE_SCRIPT.relative_to(ROOT).as_posix(),
+            "https://www.xiaoyuzhoufm.com/episode/123",
+            _bash_path(tmp_path / "out.txt"),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        cwd=ROOT,
+    )
+
+    assert "GROQ_API_KEY" not in result.stderr
+    assert curl_log.exists()
+    _assert_work_dir_cleaned(temp_root)
+
+
 @pytest.mark.parametrize("ffprobe_output", ["", "not-a-number"])
 def test_transcribe_script_fails_clearly_for_invalid_duration(
     tmp_path, ffprobe_output, bash_executable

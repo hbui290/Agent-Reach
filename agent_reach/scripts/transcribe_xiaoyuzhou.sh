@@ -75,9 +75,33 @@ if [ -z "$GROQ_API_KEY" ]; then
         if command -v cygpath >/dev/null 2>&1; then
             CONFIG_FOR_PYTHON=$(cygpath -w "$CONFIG_FILE")
         fi
+        # 系统 Python 常无 PyYAML（agent-reach 装在独立 venv），此时按行解析顶层键
         GROQ_API_KEY=$(AGENT_REACH_CONFIG_FILE="$CONFIG_FOR_PYTHON" \
-            "${PYTHON_CMD[@]}" -c 'import os, yaml; print((yaml.safe_load(open(os.environ["AGENT_REACH_CONFIG_FILE"])) or {}).get("groq_api_key", ""))' \
-            2>/dev/null || true)
+            "${PYTHON_CMD[@]}" 2>/dev/null <<'PY' || true
+import os
+import re
+
+path = os.environ["AGENT_REACH_CONFIG_FILE"]
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+if yaml is not None:
+    with open(path, encoding="utf-8") as handle:
+        print((yaml.safe_load(handle) or {}).get("groq_api_key") or "")
+else:
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            match = re.match(r"groq_api_key:\s*(.*?)\s*$", line)
+            if match:
+                value = match.group(1)
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+                    value = value[1:-1]
+                print(value)
+                break
+PY
+)
     fi
 fi
 GROQ_API_KEY="${GROQ_API_KEY:?请设置 GROQ_API_KEY 环境变量或运行 agent-reach configure groq-key}"
@@ -258,6 +282,7 @@ for i in $(seq 0 $((NUM_CHUNKS - 1))); do
             
             if [ "$HTTP_CODE" != "200" ]; then
                 echo "   ❌ 重试失败"
+                echo "   可尝试兜底：agent-reach transcribe \"$AUDIO_URL\""
                 exit 1
             fi
         else
