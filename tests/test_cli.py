@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Tests for Agent Reach CLI."""
 
+import os
 import shutil
 import subprocess
 from argparse import Namespace
@@ -102,6 +103,27 @@ class TestCLI:
                 main()
         assert out_file.read_text(encoding="utf-8").strip() == "saved text"
         assert "Transcript written" in capsys.readouterr().out
+
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes and symlinks")
+    def test_transcribe_output_keeps_mode_and_follows_symlink(self, tmp_path):
+        from agent_reach.cli import _write_text_atomic
+
+        existing = tmp_path / "existing.txt"
+        existing.write_text("old", encoding="utf-8")
+        existing.chmod(0o644)
+        link = tmp_path / "link.txt"
+        link.symlink_to(existing)
+        _write_text_atomic(link, "new")
+        assert link.is_symlink()
+        assert existing.read_text(encoding="utf-8") == "new"
+        assert existing.stat().st_mode & 0o777 == 0o644
+
+        old_umask = os.umask(0o022)
+        try:
+            _write_text_atomic(tmp_path / "fresh.txt", "x")
+        finally:
+            os.umask(old_umask)
+        assert (tmp_path / "fresh.txt").stat().st_mode & 0o777 == 0o644
 
     def test_transcribe_provider_fallback_requires_explicit_flag(self):
         with patch(

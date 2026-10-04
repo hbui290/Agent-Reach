@@ -291,6 +291,54 @@ def test_transcribe_script_reads_config_key_without_pyyaml(
     _assert_work_dir_cleaned(temp_root)
 
 
+def _script_snippet(start, end):
+    text = TRANSCRIBE_SCRIPT.read_text(encoding="utf-8")
+    begin = text.index(start)
+    return text[begin : text.index(end, begin) + len(end)]
+
+
+def test_transcribe_script_key_fallback_drops_trailing_comment(tmp_path):
+    reader = _script_snippet("import os\nimport re\n", "                break\n")
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "groq_api_key: gsk_abc  # personal key\n", encoding="utf-8"
+    )
+    no_yaml = tmp_path / "no-yaml"
+    no_yaml.mkdir()
+    (no_yaml / "yaml.py").write_text("raise ImportError('no yaml')\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "-c", reader],
+        capture_output=True,
+        encoding="utf-8",
+        env={
+            **os.environ,
+            "AGENT_REACH_CONFIG_FILE": str(config),
+            "PYTHONPATH": str(no_yaml),
+        },
+    )
+
+    assert result.stdout.strip() == "gsk_abc"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
+def test_transcribe_script_output_swap_keeps_private_mode(tmp_path, bash_executable):
+    block = _script_snippet('PARTIAL="$OUTPUT.partial.$$"', "    exit 1\nfi\n")
+    output = tmp_path / "agent-reach-transcript.abc"
+    output.write_text("", encoding="utf-8")
+    output.chmod(0o600)
+    final = tmp_path / "final.txt"
+    final.write_text("transcript\n", encoding="utf-8")
+
+    subprocess.run(
+        [bash_executable, "-c", f"umask 022\nOUTPUT='{output}'\nFINAL='{final}'\n{block}"],
+        check=True,
+    )
+
+    assert output.read_text(encoding="utf-8") == "transcript\n"
+    assert output.stat().st_mode & 0o777 == 0o600
+
+
 @pytest.mark.parametrize("ffprobe_output", ["", "not-a-number"])
 def test_transcribe_script_fails_clearly_for_invalid_duration(
     tmp_path, ffprobe_output, bash_executable

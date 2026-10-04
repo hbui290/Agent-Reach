@@ -1673,13 +1673,26 @@ def _cmd_transcribe(args):
 
 
 def _write_text_atomic(target: Path, text: str) -> None:
-    """Replace target only after the new content is fully on disk."""
+    """Replace target only after the new content is fully on disk.
+
+    Writes through a symlink to its destination and keeps the mode an
+    in-place write would have had (existing mode, else the umask default).
+    """
+    import stat
     import tempfile
 
+    target = Path(os.path.realpath(target))
+    try:
+        mode = stat.S_IMODE(target.stat().st_mode)
+    except FileNotFoundError:
+        umask = os.umask(0)
+        os.umask(umask)
+        mode = 0o666 & ~umask
     fd, tmp = tempfile.mkstemp(
         prefix=f".{target.name}.", suffix=".tmp", dir=target.parent or None
     )
     try:
+        os.chmod(tmp, mode)
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(text)
             handle.flush()
@@ -2078,7 +2091,7 @@ def _cmd_uninstall(args):
             print("Agent Reach data removed.")
         elif mcporter_cleanup_skipped:
             print("No proven Agent Reach-managed mcporter data was removed.")
-        else:
+        elif not cleanup_failed:
             print("Nothing to remove — already clean.")
 
     print()

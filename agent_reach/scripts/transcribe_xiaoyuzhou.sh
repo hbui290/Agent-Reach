@@ -98,6 +98,8 @@ else:
             match = re.match(r"groq_api_key:\s*(.*?)\s*$", line)
             if match:
                 value = match.group(1)
+                if value[:1] not in "'\"":
+                    value = re.sub(r"\s+#.*$", "", value)
                 if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
                     value = value[1:-1]
                 print(value)
@@ -431,6 +433,10 @@ FINAL="$WORK_DIR/final.txt"
 
 # 先完整写到同目录临时文件再替换：写入失败时不截断旧文件，也不丢掉已转录内容
 PARTIAL="$OUTPUT.partial.$$"
+# 先复制已有输出以保留其权限（mktemp 默认 0600，共享临时目录里必须保持私有）
+if [ -f "$OUTPUT" ]; then
+    cp -p "$OUTPUT" "$PARTIAL" 2>/dev/null || true
+fi
 if ! cat "$FINAL" > "$PARTIAL" || ! mv -f "$PARTIAL" "$OUTPUT"; then
     rm -f "$PARTIAL"
     echo "❌ 无法写入 ${OUTPUT}，文字稿输出如下：" >&2
