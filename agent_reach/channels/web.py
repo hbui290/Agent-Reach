@@ -61,7 +61,7 @@ class WebChannel(Channel):
             return (
                 "warn",
                 f"Jina Reader 不可达（{_JINA_READER_ROOT.rstrip('/')}）：{exc}。"
-                "网页读取可改用 Exa（exa_search）作为 fallback。",
+                "网页读取可改用 Tavily Extract 或 host 读取工具。",
             )
         self.active_backend = self.backends[0]
         return "ok", "通过 Jina Reader 读取任意网页（curl https://r.jina.ai/URL）"

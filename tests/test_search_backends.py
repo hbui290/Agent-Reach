@@ -267,3 +267,38 @@ def test_root_readme_summarizes_the_fork_search_changes():
     assert "Tavily is the default" in readme
     assert "Exa remains available" in readme
     assert "without spending a search credit" in readme
+
+
+def test_tavily_ok_still_reports_exa_status_without_extra_network(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        search_module.requests,
+        "get",
+        lambda url, **_k: calls.append(url) or _Response(200, {"key": {"usage": 1, "limit": 10}}),
+    )
+    monkeypatch.setattr(search_module.shutil, "which", lambda name: None)
+    channel = ExaSearchChannel()
+
+    status, message = channel.check({"tavily_api_key": "tvly-test"})
+
+    assert status == "ok"
+    assert channel.active_backend == channel.TAVILY_BACKEND
+    assert calls == [channel._TAVILY_USAGE_URL]
+    assert f"{channel.EXA_BACKEND}: 需要 mcporter + Exa MCP" in message
+
+
+def test_exa_checked_first_is_not_checked_twice(monkeypatch):
+    channel = ExaSearchChannel()
+    calls = []
+    monkeypatch.setattr(
+        channel,
+        "_check_exa",
+        lambda: calls.append("exa") or ("warn", "Exa configured but unverified"),
+    )
+    monkeypatch.setattr(channel, "_check_tavily", lambda _config: ("ok", "Tavily verified"))
+
+    status, message = channel.check(task="paper")
+
+    assert status == "ok"
+    assert calls == ["exa"]
+    assert "Exa configured but unverified" in message

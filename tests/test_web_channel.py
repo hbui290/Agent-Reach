@@ -89,8 +89,8 @@ def test_check_warn_when_jina_unreachable(exc):
     assert status == "warn"
     assert channel.active_backend is None
     assert "Jina Reader" in message
-    assert "exa_search" in message
-    assert "Exa" in message
+    assert "Tavily Extract" in message
+    assert "Exa" not in message
     _assert_jina_probe(mock_open)
 
 

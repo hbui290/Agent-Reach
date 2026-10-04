@@ -130,7 +130,7 @@ class ExaSearchChannel(Channel):
 
     def check(self, config=None, task=None):
         self.active_backend = None
-        findings = []
+        findings: list[str] = []
         saw_warn = False
         saw_error = False
         for backend in self.ordered_backends(config, task=task):
@@ -141,7 +141,14 @@ class ExaSearchChannel(Channel):
 
             if status == "ok":
                 self.active_backend = backend
-                return status, message
+                # Exa serves specialized tasks even when Tavily is healthy; its
+                # check is local-only, so report it without extra network calls.
+                if backend == self.TAVILY_BACKEND and not any(
+                    f.startswith(f"{self.EXA_BACKEND}:") for f in findings
+                ):
+                    _, exa_message = self._check_exa()
+                    findings.append(f"{self.EXA_BACKEND}: {exa_message}")
+                return status, "\n".join([message, *findings])
             saw_warn = saw_warn or status == "warn"
             saw_error = saw_error or status == "error"
             findings.append(f"{backend}: {message}")
