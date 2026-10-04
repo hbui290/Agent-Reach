@@ -86,6 +86,9 @@ def test_chrome_launch_command_is_portable_and_loopback_only():
         assert "--remote-debugging-port=9222" in command
         assert "boss-chrome-profile" in command
         assert "https://www.zhipin.com/web/geek/job" in command
+    # Start-Process does not quote ArgumentList items; spaces in USERPROFILE
+    # must stay inside one --user-data-dir argument.
+    assert '"--user-data-dir=`"$env:USERPROFILE\\.boss-chrome-profile`""' in windows
 
 
 def test_check_warn_when_no_zhipin_page():
