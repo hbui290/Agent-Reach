@@ -2,6 +2,7 @@
 """Xiaoyuzhou Podcast (小宇宙播客) — transcribe podcasts via Groq Whisper API."""
 
 import os
+import shutil
 
 from agent_reach.config import Config
 from agent_reach.probe import probe_command
@@ -35,6 +36,17 @@ class XiaoyuzhouChannel(Channel):
         if not probe.ok:
             return "error", (
                 "ffmpeg 无法执行，重装：brew install ffmpeg（macOS）/ apt install ffmpeg（Linux）"
+            )
+
+        # transcribe.sh also shells out to these; ffmpeg alone is not enough
+        missing = [
+            tool for tool in ("ffprobe", "curl", "perl") if not shutil.which(tool)
+        ]
+        if not any(shutil.which(py) for py in ("python3", "python", "py")):
+            missing.append("python3")
+        if missing:
+            return "off", (
+                f"转录脚本还需要：{', '.join(missing)}（ffprobe 随 ffmpeg 安装）"
             )
 
         # Check script exists

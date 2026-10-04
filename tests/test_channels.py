@@ -1764,6 +1764,25 @@ class TestXiaoyuzhouChannel:
         assert status == "ok"
         assert ch.active_backend == "groq-whisper"
 
+    def test_reports_missing_script_dependencies(self, monkeypatch):
+        """ffmpeg alone is not enough: transcribe.sh also needs ffprobe/curl/perl."""
+        monkeypatch.setattr(
+            shutil, "which",
+            lambda name: None if name == "perl" else f"/usr/bin/{name}",
+        )
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, "ffmpeg version 7.0", ""),
+        )
+        monkeypatch.setattr("os.path.isfile", lambda p: True)
+        monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
+        from agent_reach.channels.xiaoyuzhou import XiaoyuzhouChannel
+        ch = XiaoyuzhouChannel()
+        status, msg = ch.check()
+        assert status == "off"
+        assert "perl" in msg
+        assert ch.active_backend is None
+
 
 class TestRSSChannel:
     """can_handle URL patterns + the three check() branches (ok / off / error)."""
