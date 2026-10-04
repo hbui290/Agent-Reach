@@ -46,10 +46,10 @@ Agent Reach 是 AI Agent 的安装与诊断工具：帮助准备 CLI、MCP 和 S
 把这句话发给你的 AI Agent：
 
 ~~~text
-帮我安装 Agent Reach：https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
+安装 hbui290 维护的 Agent Reach fork。新装到 pipx 时使用 `pipx install https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip`；替换已有 `agent-reach` 前，先确认当前安装来源。然后运行 `agent-reach install --env=auto` 做只读环境检查。只有明确同意相关系统改动后，才使用 `--system`。
 ~~~
 
-安装后运行 **agent-reach doctor** 查看渠道状态。已经安装？按[升级指南](docs/update.md)更新。
+安装后运行 **agent-reach doctor** 查看渠道状态。[升级指南](docs/update.md)跟随 upstream 发布版本；fork 用户应从相同 fork 来源、按相同安装方式更新。
 
 > **默认安全：** **agent-reach install** 只检查环境；只有在你明确授权修改系统后，Agent 才应运行 **agent-reach install --system**。先预览操作可用 **--dry-run**。
 
@@ -89,10 +89,19 @@ Agent Reach 本身免费开源；Tavily、Exa MCP endpoint、代理等第三方�
 
 | 任务 | 优先使用 |
 |---|---|
-| 普通网页、新闻、时效信息、URL 抽取、站点爬取、深度研究 | Tavily |
+| 普通网页、新闻、时效信息、URL 抽取、站点爬取 | Tavily |
 | 论文/学术、公司/人物/财报、语义搜索、RAG、相似页面发现 | Exa MCP |
 
-Agent 根据任务选择后端；首选服务不可用时，可尝试另一个已配置的服务。**agent-reach doctor** 会检查 Tavily 用量接口和本地 Exa MCP 配置，但不会执行搜索，也不会验证远端 Exa endpoint。
+Agent 根据任务选择后端。Tavily Research 是可选项，并非每篇长报告都必须调用。已连接的 host 搜索/读取工具可用于补充，或在首选服务不可用时替代；需说明实际覆盖范围。用户提供 URL 时，通常可直接读取，不必重复搜索。**agent-reach doctor** 会检查 Tavily 用量接口和本地 Exa MCP 配置，但不会执行搜索，也不会验证远端 Exa endpoint；Doctor 成功也不代表搜索已返回用户要求的内容。
+
+## Agent 使用规则
+
+- 广泛调研时，按问题选择相关来源类别（如一手资料、独立报道、社区讨论），尽可能交叉核对，并说明实际查到和未覆盖的范围；不要求每次搜索所有平台。
+- 先确认当前会话真实可用的 CLI、MCP 或 host 工具。Skill 只提供操作说明，不会自动把 ChatGPT 网页连接到本机 CLI 或浏览器。
+- 出错时按有限重试和平台恢复规则处理。X 搜索的后备顺序为：重试 → 检查 `twitter-cli` 更新 → OpenCLI → 相关账号动态/帖子。使用动态或账号帖子时，说明这只是有限范围，不代表搜索了整个 X。
+- 向远程服务发送私人 URL 或私人音频前，说明接收方和发送的数据，并取得所需授权。视频结果要区分平台字幕与 ASR 语音转写。
+
+以上是 skill 中的 Agent 操作指导；本次变更没有修改 CLI runtime、依赖或新增平台后端。
 
 详细说明：[搜索指南](agent_reach/skill/references/search.md) · [Tavily 配置](agent_reach/guides/setup-tavily.md) · [Exa 配置](agent_reach/guides/setup-exa.md)
 

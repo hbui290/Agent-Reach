@@ -38,7 +38,15 @@ This fork stays close to [Panniantong/Agent-Reach](https://github.com/Pannianton
 - Routing, malformed API responses, quota states, secret handling, and fallback behavior have regression coverage.
 - Selected upstream hardening is included for explicit install targets, YouTube browser cookies, Jina health checks, responsive MCP status calls, restricted filesystems, and safe `mcporter` examples.
 
-All other platform behavior follows upstream. Detailed setup belongs in the linked guides rather than this landing page.
+The Agent Reach skill also gives agents task-based instructions for using these tools:
+
+- Use Tavily for general web/news search and Exa for academic, entity, semantic, and RAG discovery; read a supplied URL directly when appropriate.
+- For broad research, select relevant source families (such as primary sources, independent reporting, and community discussion), compare them when available, and report what was and was not covered. Do not call every platform by default.
+- Check that a connected tool, CLI, and required account access are actually available. A skill describes procedures; it does not itself connect ChatGPT web to a local CLI or browser.
+- Recover from failures with bounded retries and suitable authorized alternatives. For X search, the documented path is retry → check for a `twitter-cli` update → OpenCLI → relevant account feeds/posts; a feed is reported as a limited source, not full X search.
+- Before sending private URLs or private audio to a remote service, identify the recipient and data transfer and obtain applicable authorization. Report whether video text came from platform captions or ASR.
+
+These are agent-instruction updates in the skill files. This update does not change the CLI runtime or dependencies, or add platform backends. Detailed setup belongs in the linked guides rather than this landing page.
 
 To test the current fork branch directly:
 
@@ -72,10 +80,10 @@ Agent Reach helps AI agents install and diagnose internet integrations. It prepa
 Send this to your AI agent:
 
 ~~~text
-Install Agent Reach: https://raw.githubusercontent.com/Panniantong/agent-reach/main/docs/install.md
+Install the hbui290 fork of Agent Reach. For a new pipx install, use `pipx install https://github.com/hbui290/Agent-Reach/archive/refs/heads/main.zip`; first check the source of any existing `agent-reach` installation before replacing it. Then run `agent-reach install --env=auto` for a read-only environment check. Use `--system` only after explicitly approving the proposed system changes.
 ~~~
 
-After installation, run <code>agent-reach doctor</code> to check channel status. To update, follow the [Update Guide](docs/update.md).
+After installation, run <code>agent-reach doctor</code> to check channel status. The linked [Update Guide](docs/update.md) tracks upstream releases; update a fork installation from the same fork source and with its matching install method.
 
 > **Safe by default:** <code>agent-reach install</code> only checks the environment. Use <code>agent-reach install --system</code> only after explicitly approving system changes. Preview changes with <code>--dry-run</code>.
 
@@ -118,7 +126,7 @@ Agent Reach is free and open source. Third-party quotas and fees—including Tav
 | General web, news, recent information, URL extraction, site crawling, and deep research | Tavily |
 | Papers, academic research, companies, people, financial reports, semantic search, RAG, and similar-page discovery | Exa MCP |
 
-The agent selects a backend for each task and may try another configured backend if the preferred service is unavailable. <code>agent-reach doctor</code> checks the Tavily usage endpoint and local Exa MCP configuration; it does not run searches or verify a remote Exa endpoint.
+The agent selects a backend for each task. Tavily Research is optional, not required for every long report. A suitable connected host search/read tool may supplement or replace an unavailable backend, with coverage limits reported. For a supplied URL, the agent can read it directly without searching for it again. <code>agent-reach doctor</code> checks the Tavily usage endpoint and local Exa MCP configuration; it does not run searches or verify a remote Exa endpoint. A successful diagnostic also does not prove that a search returned the requested content.
 
 Details: [English agent guide](agent_reach/skill/SKILL_en.md) · [Search reference (Chinese)](agent_reach/skill/references/search.md) · [Tavily setup (Chinese)](agent_reach/guides/setup-tavily.md) · [Exa setup (Chinese)](agent_reach/guides/setup-exa.md)
 
