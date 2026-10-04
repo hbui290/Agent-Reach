@@ -257,3 +257,23 @@ def test_machine_output_parser_remains_available_for_install_flows():
     )
 
     assert configured_server_names(output) == {"exa", "linkedin-scraper"}
+
+
+def test_jsonc_comments_and_trailing_commas_are_accepted(
+    monkeypatch, tmp_path, isolated_home
+):
+    monkeypatch.chdir(tmp_path)
+    path = isolated_home / ".mcporter" / "mcporter.jsonc"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        """{
+  // hosted search
+  "mcpServers": {
+    "exa": {"baseUrl": "https://mcp.exa.ai/mcp?a=1//not-a-comment"}, /* block */
+  },
+}
+""",
+        encoding="utf-8",
+    )
+
+    assert inspect_mcporter_config().server_names == {"exa"}
