@@ -270,6 +270,21 @@ def test_social_reference_documents_xhs_download_and_instagram_limits():
     assert "400" not in instagram
 
 
+def test_video_reference_describes_current_polish_model():
+    """The polish docs must match the script's model, not the removed Llama."""
+    reference = (
+        ROOT / "agent_reach" / "skill" / "references" / "video.md"
+    ).read_text(encoding="utf-8")
+    script = (
+        ROOT / "agent_reach" / "scripts" / "transcribe_xiaoyuzhou.sh"
+    ).read_text(encoding="utf-8")
+    assert "Llama" not in reference
+    assert "Groq 上免费" not in reference
+    assert "POLISH_MODEL" in reference
+    assert "qwen/qwen3.8-27b" in reference
+    assert "qwen/qwen3.8-27b" in script
+
+
 def test_skill_routes_finance_and_documents_opencli_discovery():
     skills = (
         ROOT / "agent_reach" / "skill" / "SKILL.md",

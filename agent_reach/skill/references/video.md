@@ -130,11 +130,11 @@ curl -s -b /tmp/bili_ck.txt -A "$UA" -e "https://www.bilibili.com/" \
 ### 转录单集播客（可选 --polish 增强标点）
 
 ```bash
-# 输出 Markdown 文件到 /tmp/。--polish 让 Llama 3.3 70B 给文稿补中文标点+合理分段
+# 输出 Markdown 文件到 /tmp/。--polish 让 Groq LLM（默认 `qwen/qwen3.8-27b`，可用 `POLISH_MODEL` 覆盖）给文稿补中文标点+合理分段
 ~/.agent-reach/tools/xiaoyuzhou/transcribe.sh --polish "https://www.xiaoyuzhoufm.com/episode/EPISODE_ID"
 ```
 
-> 转写 prompt 已要求 Whisper 输出中文标点；若标点效果仍不理想，可加 `--polish` 用 Groq 上免费的 Llama 3.3 70B 补标点+合理分段（9 分钟播客约多 ~7 秒）。每次转写多一轮 LLM 调用，按需使用。
+> 转写 prompt 已要求 Whisper 输出中文标点；若标点效果仍不理想，可加 `--polish` 用 Groq LLM（默认 `qwen/qwen3.8-27b`，可用 `POLISH_MODEL` 覆盖）补标点+合理分段。每次转写多一轮 LLM 调用，按需使用；润色失败时保留原文并输出 `⚠️ 润色失败，已保留原文`，转写本身仍视为成功。
 
 ### 前置要求
 
