@@ -17,9 +17,13 @@ agent-reach doctor --json
 当 `exa_search.active_backend` 为 `Tavily via REST` 时，Tavily 已通过 `/usage`
 验证。Doctor 不执行搜索，因此不会消耗搜索 credit。
 
-直接调用 Tavily API 时，需要在当前进程设置 `TAVILY_API_KEY`：
+直接调用 Tavily API 时，需要在当前进程设置 `TAVILY_API_KEY`。未设置时可从已保存的
+config.yaml 载入（不回显 key；与 curl 放在同一条 Shell 命令里）：
 
 ```bash
+AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
+PY=$(head -1 "$AR" | sed 's/^#!//')
+export TAVILY_API_KEY="${TAVILY_API_KEY:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")')}"
 curl -sS https://api.tavily.com/search \
   -H "Authorization: Bearer $TAVILY_API_KEY" \
   -H "Content-Type: application/json" \

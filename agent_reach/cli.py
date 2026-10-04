@@ -1604,8 +1604,9 @@ def _cmd_configure(args):
     elif args.key == "tavily-key":
         config.set("tavily_api_key", value)
         print("✅ Tavily API key configured!")
-        print("   Saved for `agent-reach doctor`; direct Tavily calls still require")
-        print("   TAVILY_API_KEY in the caller's environment.")
+        print("   Saved for `agent-reach doctor`; direct Tavily calls need")
+        print("   TAVILY_API_KEY in the caller's environment (the skill loads it")
+        print("   from config.yaml when unset).")
 
 
 def _cmd_transcribe(args):

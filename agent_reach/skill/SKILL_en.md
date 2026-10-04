@@ -127,7 +127,12 @@ personal information into a query.
 ## Local quick commands (require the listed tools/credentials)
 
 ```bash
-# Tavily web search (primary; requires TAVILY_API_KEY, see references/search.md)
+# Tavily web search (primary, see references/search.md)
+# `agent-reach configure tavily-key` stores the key in config.yaml; load it when the
+# env var is unset, in the same shell command as curl, without echoing it
+AR=$(command -v agent-reach || ls ~/.agent-reach-venv/bin/agent-reach ~/.local/bin/agent-reach 2>/dev/null | head -1)
+PY=$(head -1 "$AR" | sed 's/^#!//')
+export TAVILY_API_KEY="${TAVILY_API_KEY:-$("$PY" -c 'from agent_reach.config import Config; print(Config().get("tavily_api_key") or "")')}"
 curl -sS https://api.tavily.com/search -H "Authorization: Bearer $TAVILY_API_KEY" -H "Content-Type: application/json" -d '{"query":"query","search_depth":"advanced","max_results":5}'
 
 # Exa web search (specialized task or Tavily-unavailable fallback)
