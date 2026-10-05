@@ -26,6 +26,9 @@ class _MemoryConfig:
     def set(self, key, value):
         self.data[key] = value
 
+    def set_many(self, mapping):
+        self.data.update(mapping)
+
 
 def test_configure_reads_secret_from_stdin_without_echoing_it(
     monkeypatch, capsys
@@ -406,7 +409,7 @@ def test_install_does_not_implicitly_read_browser_cookies(monkeypatch, tmp_path,
     )
     monkeypatch.setattr(
         "agent_reach.doctor.format_report",
-        lambda _results: "report",
+        lambda _results, _config=None: "report",
     )
     monkeypatch.setattr(
         cookie_extract,
@@ -662,7 +665,7 @@ def test_doctor_never_installs_or_updates_skill(monkeypatch, capsys):
 
     monkeypatch.setattr(config_module, "Config", _MemoryConfig)
     monkeypatch.setattr("agent_reach.doctor.check_all", lambda _config: {})
-    monkeypatch.setattr("agent_reach.doctor.format_report", lambda _results: "report")
+    monkeypatch.setattr("agent_reach.doctor.format_report", lambda _results, _config=None: "report")
     monkeypatch.setattr(
         cli,
         "_install_skill",

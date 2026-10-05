@@ -21,7 +21,7 @@ def test_doctor_leaves_sandbox_home_unchanged(
 ):
     """If Doctor is truly read-only, even the sandbox remains empty."""
     monkeypatch.setattr("agent_reach.doctor.check_all", lambda config: {})
-    monkeypatch.setattr("agent_reach.doctor.format_report", lambda results: "report")
+    monkeypatch.setattr("agent_reach.doctor.format_report", lambda results, config=None: "report")
     monkeypatch.setattr(
         cli,
         "_install_skill",

@@ -366,8 +366,7 @@ def _cmd_install(args):
             mode = "dry-run" if dry_run else "safe"
             print(f"[{mode}] Would save network proxy")
         else:
-            config.set("proxy", args.proxy)
-            config.set("bilibili_proxy", args.proxy)  # legacy key
+            config.set_many({"proxy": args.proxy, "bilibili_proxy": args.proxy})
             print("✅ 代理已保存（Agent 访问受限网络时使用）")
 
     # ── Install core system dependencies (lightweight, always) ──
@@ -452,7 +451,7 @@ def _cmd_install(args):
 
         # Final status
         print()
-        print(format_report(results))
+        print(format_report(results, config))
         print()
 
         if safe_mode:
@@ -524,49 +523,83 @@ def _install_skill(force: bool = True):
         except FileNotFoundError:
             return skill_pkg.joinpath("SKILL.md").read_text(encoding="utf-8")
 
-    def _copy_skill_dir(target: str) -> str | None:
-        """Copy entire skill directory (locale-specific SKILL.md + references/)."""
+    def _read_skill_payload():
+        """Read the new skill content into memory before touching any install."""
         try:
-            if not force and os.path.exists(os.path.join(target, "SKILL.md")):
-                return "preserved"
+            skill_pkg = importlib.resources.files("agent_reach").joinpath("skill")
+            skill_md = _read_skill_markdown(skill_pkg)
+        except Exception:
+            from pathlib import Path
+            skill_pkg = Path(__file__).resolve().parent / "skill"
+            skill_md = _read_skill_markdown(skill_pkg)
+        refs = {}
+        refs_pkg = skill_pkg.joinpath("references")
+        for ref_file in refs_pkg.iterdir():
+            name = ref_file.name if hasattr(ref_file, 'name') else str(ref_file).split('/')[-1]
+            if name.endswith(".md"):
+                refs[name] = ref_file.read_text(encoding="utf-8") if hasattr(ref_file, 'read_text') else ref_file.read_text()
+        return skill_md, refs
 
-            # Clear existing installation. A symlinked skill dir (dotfiles
-            # setups) breaks shutil.rmtree — unlink the link itself instead.
-            if os.path.islink(target):
-                os.unlink(target)
-            elif os.path.exists(target):
-                shutil.rmtree(target)
-            os.makedirs(target, exist_ok=True)
+    def _copy_skill_dir(target: str) -> str | None:
+        """Copy entire skill directory (locale-specific SKILL.md + references/).
 
-            # Get skill directory from package (with fallback for editable installs)
-            try:
-                skill_pkg = importlib.resources.files("agent_reach").joinpath("skill")
-                skill_md = _read_skill_markdown(skill_pkg)
-            except Exception:
-                from pathlib import Path
-                skill_pkg = Path(__file__).resolve().parent / "skill"
-                skill_md = _read_skill_markdown(skill_pkg)
+        Stage a complete replacement beside the target before moving the
+        old entry. Restore it on publication failure; retain the backup and
+        report its path if restoration also fails.
+        """
+        import tempfile
 
-            # Copy SKILL.md using the selected locale file
-            with open(os.path.join(target, "SKILL.md"), "w", encoding="utf-8") as f:
+        if not force and os.path.exists(os.path.join(target, "SKILL.md")):
+            return "preserved"
+
+        try:
+            skill_md, refs = _read_skill_payload()
+        except Exception as e:
+            print(f"  Warning: Could not read bundled skill content: {e}")
+            return None
+
+        work_dir = None
+        backup_target = None
+        keep_backup = False
+        try:
+            work_dir = tempfile.mkdtemp(
+                prefix=".agent-reach-", dir=os.path.dirname(target),
+            )
+            staging = os.path.join(work_dir, "new")
+            os.makedirs(staging)
+            with open(os.path.join(staging, "SKILL.md"), "w", encoding="utf-8") as f:
                 f.write(skill_md)
+            refs_target = os.path.join(staging, "references")
+            os.makedirs(refs_target)
+            for name, content in refs.items():
+                with open(os.path.join(refs_target, name), "w", encoding="utf-8") as f:
+                    f.write(content)
 
-            # Copy references/ directory
-            refs_pkg = skill_pkg.joinpath("references")
-            refs_target = os.path.join(target, "references")
-            os.makedirs(refs_target, exist_ok=True)
-
-            for ref_file in refs_pkg.iterdir():
-                name = ref_file.name if hasattr(ref_file, 'name') else str(ref_file).split('/')[-1]
-                if name.endswith(".md"):
-                    content = ref_file.read_text(encoding="utf-8") if hasattr(ref_file, 'read_text') else ref_file.read_text()
-                    with open(os.path.join(refs_target, name), "w", encoding="utf-8") as f:
-                        f.write(content)
-
+            # Rename the entry, not a symlink's referent. All paths stay on
+            # the target filesystem, including HOME on a separate volume.
+            if os.path.lexists(target):
+                backup_target = os.path.join(work_dir, "old")
+                os.rename(target, backup_target)
+            try:
+                os.rename(staging, target)
+            except Exception:
+                if backup_target is not None:
+                    try:
+                        os.rename(backup_target, target)
+                    except Exception as restore_error:
+                        keep_backup = True
+                        print(
+                            f"  Warning: Could not restore skill: {restore_error}; "
+                            f"old install retained at {backup_target}"
+                        )
+                raise
             return "installed"
         except Exception as e:
             print(f"  Warning: Could not install skill: {e}")
             return None
+        finally:
+            if work_dir is not None and not keep_backup:
+                shutil.rmtree(work_dir, ignore_errors=True)
 
     # Install into every known skill root that already exists.
     skill_dirs = [
@@ -585,6 +618,7 @@ def _install_skill(force: bool = True):
         )
 
     installed = False
+    failed_targets: list = []
     for skill_dir, platform_name in skill_dirs:
         if os.path.isdir(skill_dir):
             target = os.path.join(skill_dir, "agent-reach")
@@ -595,15 +629,18 @@ def _install_skill(force: bool = True):
                 else:
                     print(f"Skill installed for {platform_name}: {target}")
                 installed = True
+            else:
+                # A failed target must not be masked by other successes.
+                failed_targets.append(f"{platform_name} ({target})")
 
-    if not installed:
+    if not installed and not failed_targets:
         # No known skill directory found — create for .agents by default
         target = os.path.expanduser("~/.agents/skills/agent-reach")
         try:
             os.makedirs(os.path.dirname(target), exist_ok=True)
         except OSError as e:
             print(f"  Warning: Could not create {os.path.dirname(target)}: {e}")
-            return installed
+            return False
         status = _copy_skill_dir(target)
         if status == "preserved":
             print(f"Skill already installed, preserving existing files: {target}")
@@ -611,11 +648,19 @@ def _install_skill(force: bool = True):
             print(f"Skill installed: {target}")
             installed = True
         else:
+            failed_targets.append(f"Agent ({target})")
             print("  -- Could not install agent skill (optional)")
             print(
                 "  -- Tip: install OpenCode, OpenClaw, Claude Code, "
                 "or create ~/.agents/skills/ manually"
             )
+
+    if failed_targets:
+        print(
+            "  -- Skill install failed for: " + ", ".join(failed_targets)
+            + " — the previous install was kept where possible."
+        )
+        return False
     return installed
 
 
@@ -1124,6 +1169,12 @@ def _install_opencli_deps():
 
     print("Setting up OpenCLI (browser-session backend, desktop only)...")
     st = opencli_status()
+    if st.probe_failed:
+        # Probe timed out/errored: state unknown, NOT proven broken — never
+        # trigger an npm reinstall on this signal, and don't fail the install.
+        print(f"  [!] {opencli_summary(st)}")
+        print(f"  {st.hint}")
+        return True
     if st.installed and not st.broken:
         print(f"  ✅ {opencli_summary(st)}")
         if not st.ready:
@@ -1150,12 +1201,19 @@ def _install_opencli_deps():
         and install_result.returncode == 0
         and st.installed
         and not st.broken
+        and not st.probe_failed
     ):
         print("  ✅ OpenCLI installed")
         print("  最后一步（必须手动，Chrome 安全限制）：安装浏览器扩展")
         print(f"    1. 打开 {OPENCLI_EXTENSION_URL}")
         print("    2. 点「添加至 Chrome」")
         print("    3. 运行 `opencli doctor` 验证连接")
+        return True
+    elif st.probe_failed:
+        # npm reported success but the probe is inconclusive: don't claim
+        # the install failed, tell the user how to verify manually.
+        print(f"  [!] {opencli_summary(st)}")
+        print(f"  {st.hint}")
         return True
     else:
         print(f"  [!]  OpenCLI install failed. Run: npm install -g {OPENCLI_PACKAGE}")
@@ -1563,8 +1621,7 @@ def _cmd_configure(args):
         # this key at runtime — agents read it back and export HTTP(S)_PROXY
         # before invoking upstream tools (see docs/install.md). The legacy
         # bilibili_proxy key is kept in sync for older configs.
-        config.set("proxy", value)
-        config.set("bilibili_proxy", value)
+        config.set_many({"proxy": value, "bilibili_proxy": value})
         print("✅ 代理已保存（供 Agent 在访问 Reddit/Twitter 等需要代理的网络时设置 HTTP_PROXY/HTTPS_PROXY）")
         print("  Note: B站走 bili-cli，国内网络无需代理。")
 
@@ -1575,8 +1632,9 @@ def _cmd_configure(args):
         auth_token, ct0 = _parse_twitter_cookie_input(value)
 
         if auth_token and ct0:
-            config.set("twitter_auth_token", auth_token)
-            config.set("twitter_ct0", ct0)
+            # Both cookies are one credential pair: save them with a single
+            # atomic write so a failure can never leave a mismatched pair.
+            config.set_many({"twitter_auth_token": auth_token, "twitter_ct0": ct0})
 
             print("✅ Twitter cookies 已保存到 ~/.agent-reach/config.yaml")
             if getattr(args, "sync_legacy_twitter", False):
@@ -2136,7 +2194,7 @@ def _cmd_doctor(args=None):
         print(json.dumps(results, ensure_ascii=False, indent=2))
         return
 
-    report = format_report(results)
+    report = format_report(results, config)
     try:
         from rich import print as rich_print
     except ImportError:

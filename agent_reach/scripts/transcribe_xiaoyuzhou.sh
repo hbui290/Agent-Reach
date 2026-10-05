@@ -377,9 +377,14 @@ def polish(text, depth=0):
         sys.stderr.write(f"polish error: {e}\n")
         FALLBACKS.append(type(e).__name__ + ": " + str(e)[:80])
         return text
-    if fr != "length" or depth >= MAX_DEPTH:
+    if fr != "length":
         SUCCESSES[0] += 1
         return out
+    if depth >= MAX_DEPTH:
+        # Still truncated at the recursion limit: keep the original text
+        # rather than silently publishing a cut-off polish as success.
+        FALLBACKS.append("truncated at max depth")
+        return text
     # 输出被截断：从中点切两半递归处理
     mid = len(text) // 2
     return polish(text[:mid], depth + 1) + polish(text[mid:], depth + 1)
@@ -432,7 +437,12 @@ FINAL="$WORK_DIR/final.txt"
 } > "$FINAL"
 
 # 先完整写到同目录临时文件再替换：写入失败时不截断旧文件，也不丢掉已转录内容
-PARTIAL="$OUTPUT.partial.$$"
+# mktemp 让临时文件名不可预测（$$ 可被同一目录其他用户猜到并抢占）
+if ! PARTIAL="$(mktemp "${OUTPUT}.partial.XXXXXX")"; then
+    echo "❌ 无法安全创建临时文件，文字稿输出如下：" >&2
+    cat "$FINAL"
+    exit 1
+fi
 # 先复制已有输出以保留其权限（mktemp 默认 0600，共享临时目录里必须保持私有）
 if [ -f "$OUTPUT" ]; then
     cp -p "$OUTPUT" "$PARTIAL" 2>/dev/null || true

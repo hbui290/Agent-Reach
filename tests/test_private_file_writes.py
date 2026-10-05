@@ -474,7 +474,7 @@ def test_safe_install_with_proxy_makes_no_persistent_writes(
     )
     monkeypatch.setattr(
         "agent_reach.doctor.format_report",
-        lambda _results: "report",
+        lambda _results, _config=None: "report",
     )
     monkeypatch.setattr(
         cli,
@@ -527,7 +527,7 @@ def test_install_is_safe_by_default(isolated_home, monkeypatch, capsys):
     monkeypatch.setattr("agent_reach.doctor.check_all", lambda _config: {})
     monkeypatch.setattr(
         "agent_reach.doctor.format_report",
-        lambda _results: "report",
+        lambda _results, _config=None: "report",
     )
     monkeypatch.setattr(
         cli.sys,
@@ -567,7 +567,7 @@ def test_install_system_flag_explicitly_enables_writes(
     monkeypatch.setattr("agent_reach.doctor.check_all", lambda _config: {})
     monkeypatch.setattr(
         "agent_reach.doctor.format_report",
-        lambda _results: "report",
+        lambda _results, _config=None: "report",
     )
     monkeypatch.setattr(
         cli.sys,
@@ -593,7 +593,7 @@ def test_install_system_exits_nonzero_when_core_steps_fail(
     monkeypatch.setattr("agent_reach.doctor.check_all", lambda _config: {})
     monkeypatch.setattr(
         "agent_reach.doctor.format_report",
-        lambda _results: "report",
+        lambda _results, _config=None: "report",
     )
     monkeypatch.setattr(
         cli.sys,
@@ -621,7 +621,7 @@ def test_install_system_exits_nonzero_when_requested_channel_fails(
     monkeypatch.setattr("agent_reach.doctor.check_all", lambda _config: {})
     monkeypatch.setattr(
         "agent_reach.doctor.format_report",
-        lambda _results: "report",
+        lambda _results, _config=None: "report",
     )
     monkeypatch.setattr(
         cli.sys,
@@ -653,7 +653,7 @@ def test_install_system_exits_nonzero_when_skill_install_fails(
     monkeypatch.setattr("agent_reach.doctor.check_all", lambda _config: {})
     monkeypatch.setattr(
         "agent_reach.doctor.format_report",
-        lambda _results: "report",
+        lambda _results, _config=None: "report",
     )
     monkeypatch.setattr(
         cli.sys,

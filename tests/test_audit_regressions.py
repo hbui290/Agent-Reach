@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """Regressions for edge cases found while auditing the fork."""
 
+import os as _os
 import subprocess
+import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -233,13 +236,55 @@ def test_chunk_audio_ignores_chunks_from_an_earlier_run(tmp_path, monkeypatch):
     (tmp_path / "chunk_002.m4a").write_bytes(b"stale")
 
     def fake_run(cmd, *args, **kwargs):
+        # The segment pattern is the last argv element: <fresh-dir>/chunk_%03d.m4a
+        pattern = Path(cmd[-1])
         for i in range(2):
-            (tmp_path / f"chunk_{i:03d}.m4a").write_bytes(b"new")
+            (pattern.parent / f"chunk_{i:03d}.m4a").write_bytes(b"new")
 
     monkeypatch.setattr(tr, "_require", lambda _name: None)
     monkeypatch.setattr(tr, "_run", fake_run)
     chunks = tr.chunk_audio(tmp_path / "src.m4a", tmp_path)
     assert [c.name for c in chunks] == ["chunk_000.m4a", "chunk_001.m4a"]
+    # Caller-owned files in out_dir are never deleted or overwritten.
+    assert (tmp_path / "chunk_002.m4a").read_bytes() == b"stale"
+    assert not (tmp_path / "chunk_000.m4a").exists()
+    assert not (tmp_path / "chunk_001.m4a").exists()
+
+
+def test_chunk_audio_never_deletes_caller_chunk_files(tmp_path, monkeypatch):
+    """The exact reported bug: a caller file named chunk_000.m4a must survive."""
+    from agent_reach import transcribe as tr
+
+    victim = tmp_path / "chunk_000.m4a"
+    victim.write_bytes(b"precious")
+
+    def fake_run(cmd, *args, **kwargs):
+        pattern = Path(cmd[-1])
+        (pattern.parent / "chunk_000.m4a").write_bytes(b"new")
+
+    monkeypatch.setattr(tr, "_require", lambda _name: None)
+    monkeypatch.setattr(tr, "_run", fake_run)
+    chunks = tr.chunk_audio(tmp_path / "src.m4a", tmp_path)
+    assert len(chunks) == 1
+    assert victim.read_bytes() == b"precious"
+
+
+def test_download_audio_ignores_stale_source_in_reused_dir(tmp_path, monkeypatch):
+    """A stale source.m4a from an earlier download must not be picked up."""
+    from agent_reach import transcribe as tr
+
+    (tmp_path / "source.m4a").write_bytes(b"stale-audio")
+
+    def fake_run(cmd, *args, **kwargs):
+        out_dir = Path(cmd[cmd.index("-o") + 1]).parent
+        (out_dir / "source.webm").write_bytes(b"fresh")
+
+    monkeypatch.setattr(tr, "_require", lambda _name: None)
+    monkeypatch.setattr(tr, "_run", fake_run)
+    audio = tr.download_audio("https://example.com/watch?v=123", tmp_path)
+    assert audio.name == "source.webm"
+    assert audio.read_bytes() == b"fresh"
+    assert (tmp_path / "source.m4a").read_bytes() == b"stale-audio"
 
 
 @pytest.mark.parametrize(
@@ -283,3 +328,239 @@ def test_opencli_timeout_is_not_called_a_broken_node():
         st = opencli.opencli_status()
     assert "node 环境损坏" not in st.hint
     assert "timeout" in st.hint
+
+
+# ---------------------------------------------------------------------------
+# Verified-audit fixes: config / skill install / opencli / url / xueqiu /
+# doctor / shell polish regressions
+# ---------------------------------------------------------------------------
+
+def test_config_unreadable_file_is_clean_config_error(tmp_path):
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("a: 1", encoding="utf-8")
+    with patch(
+        "agent_reach.config.read_small_text_no_follow",
+        side_effect=PermissionError(13, "Permission denied"),
+    ):
+        with pytest.raises(ConfigError, match="无法读取"):
+            Config(config_path=cfg_path)
+
+
+@pytest.mark.parametrize("payload", ["false\n", "0\n", "[]\n", "just a string\n"])
+def test_config_yaml_scalar_top_level_is_rejected(tmp_path, payload):
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text(payload, encoding="utf-8")
+    with pytest.raises(ConfigError, match="顶层必须是对象"):
+        Config(config_path=cfg_path)
+
+
+def test_config_empty_file_still_loads_as_empty(tmp_path):
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("# only a comment\n", encoding="utf-8")
+    assert Config(config_path=cfg_path).data == {}
+
+
+def test_config_set_many_saves_once_and_rolls_back(tmp_path):
+    cfg_path = tmp_path / "config.yaml"
+    cfg = Config(config_path=cfg_path)
+    cfg.set("existing", "keep")
+
+    saves = []
+    real_save = Config.save
+
+    def counting_save(self):
+        saves.append(1)
+        return real_save(self)
+
+    with patch.object(Config, "save", counting_save):
+        cfg.set_many({"twitter_auth_token": "tok", "twitter_ct0": "ct0"})
+    assert len(saves) == 1
+    assert Config(config_path=cfg_path).get("twitter_auth_token") == "tok"
+    assert Config(config_path=cfg_path).get("twitter_ct0") == "ct0"
+
+    def boom(self):
+        raise OSError("simulated disk failure")
+
+    before = cfg_path.read_bytes()
+    with patch.object(Config, "save", boom):
+        with pytest.raises(OSError):
+            cfg.set_many({"twitter_auth_token": "NEW", "twitter_ct0": "NEW2"})
+    assert cfg_path.read_bytes() == before
+    assert cfg.get("twitter_auth_token") == "tok"
+    assert cfg.get("twitter_ct0") == "ct0"
+
+
+def test_install_skill_rollback_restores_old_install(monkeypatch, tmp_path, capsys):
+    home = tmp_path / "home"
+    target = home / ".agents" / "skills" / "agent-reach"
+    target.mkdir(parents=True)
+    (target / "SKILL.md").write_text("OLD SKILL", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+
+    real_makedirs = _os.makedirs
+
+    def fail_on_references(path, *args, **kwargs):
+        if str(path).endswith("references"):
+            raise OSError("simulated disk failure")
+        return real_makedirs(path, *args, **kwargs)
+
+    monkeypatch.setattr(_os, "makedirs", fail_on_references)
+
+    assert cli._install_skill() is False
+    # The old install survived the failed reinstall.
+    assert (target / "SKILL.md").read_text(encoding="utf-8") == "OLD SKILL"
+    assert "failed" in capsys.readouterr().out
+
+
+def test_install_skill_partial_failure_is_not_masked(monkeypatch, tmp_path, capsys):
+    home = tmp_path / "home"
+    for rel in (".agents/skills", ".config/opencode/skills"):
+        (home / rel / "agent-reach").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+
+    real_rename = _os.rename
+
+    def fail_opencode(src, dst):
+        if "opencode" in str(src):
+            raise OSError("simulated failure")
+        return real_rename(src, dst)
+
+    monkeypatch.setattr(_os, "rename", fail_opencode)
+
+    # The Agent target installs fine, but the OpenCode failure must surface.
+    assert cli._install_skill() is False
+    out = capsys.readouterr().out
+    assert "opencode" in out.lower()
+    assert (home / ".agents" / "skills" / "agent-reach" / "SKILL.md").exists()
+
+
+def test_opencli_probe_timeout_is_unknown_not_broken():
+    from unittest.mock import patch as _patch
+
+    from agent_reach.backends import opencli_status, opencli_summary
+    from agent_reach.probe import ProbeResult
+
+    with _patch(
+        "agent_reach.backends.opencli.probe_command",
+        return_value=ProbeResult("timeout", output="timed out"),
+    ):
+        st = opencli_status()
+    assert st.installed
+    assert not st.broken
+    assert st.probe_failed
+    assert not st.ready
+    assert "未知" in opencli_summary(st)
+    assert "npm install" not in st.hint
+
+
+def test_fullwidth_dot_localhost_is_blocked():
+    # U+FF61 FULLWIDTH FULL STOP folds to "localhost." via IDNA — the
+    # blocklist must still catch it after the trailing dot is stripped.
+    with pytest.raises(ValueError):
+        normalize_public_http_url("http://localhost．/")
+    with pytest.raises(ValueError):
+        normalize_public_http_url("http://localhost．:8080/x")
+
+
+def test_xueqiu_cookie_jar_resets_when_config_changes(monkeypatch):
+    import agent_reach.channels.xueqiu as xq
+
+    class FakeConfig:
+        def __init__(self, cookie):
+            self._cookie = cookie
+
+        def get(self, key, default=None):
+            return self._cookie if key == "xueqiu_cookie" else default
+
+    monkeypatch.setattr(xq, "_cookies_initialized", False)
+    monkeypatch.setattr(xq, "_cookies_init_fingerprint", None)
+    xq._cookie_jar.clear()
+
+    try:
+        xq._ensure_cookies(FakeConfig("session=A"))
+        assert {c.value for c in xq._cookie_jar if c.name == "session"} == {"A"}
+
+        # Same process, different config: stale cookies must not leak.
+        xq._ensure_cookies(FakeConfig("session=B"))
+        assert {c.value for c in xq._cookie_jar if c.name == "session"} == {"B"}
+
+        # Same config again: no reset, no redundant work.
+        jar_id = id(xq._cookie_jar)
+        xq._ensure_cookies(FakeConfig("session=B"))
+        assert id(xq._cookie_jar) == jar_id
+    finally:
+        xq._reset_cookie_jar()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission check")
+def test_format_report_checks_active_custom_config_path(tmp_path):
+    from agent_reach.doctor import format_report
+
+    cfg_path = tmp_path / "custom-config.yaml"
+    cfg_path.write_text("tavily_api_key: <redacted>", encoding="utf-8")
+    cfg_path.chmod(0o644)
+    cfg = Config(config_path=cfg_path)
+    report = format_report({}, cfg)
+    assert "权限过宽" in report
+    assert str(cfg_path) in report
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission check")
+def test_format_report_without_config_still_checks_default(monkeypatch, tmp_path):
+    from agent_reach.config import Config as ConfigCls
+    from agent_reach.doctor import format_report
+
+    cfg_path = tmp_path / "config.yaml"
+    cfg_path.write_text("a: 1", encoding="utf-8")
+    cfg_path.chmod(0o644)
+    monkeypatch.setattr(ConfigCls, "CONFIG_DIR", tmp_path)
+    report = format_report({})
+    assert "权限过宽" in report
+
+
+def _extract_polish_fn():
+    import re
+    import urllib
+
+    repo_root = Path(__file__).resolve().parent.parent
+    src = (
+        repo_root / "agent_reach" / "scripts" / "transcribe_xiaoyuzhou.sh"
+    ).read_text(encoding="utf-8")
+    match = re.search(
+        r"(def polish\(text, depth=0\):.*?)(?=\ncontent = open\(IN)", src, re.S
+    )
+    assert match, "polish() not found in transcribe_xiaoyuzhou.sh"
+    namespace = {
+        "urllib": urllib,
+        "FALLBACKS": [],
+        "SUCCESSES": [0],
+        "MAX_DEPTH": 1,
+        "call_groq": lambda text: ("TRUNCATED-OUTPUT", "length"),
+    }
+    exec(compile(match.group(1), "<polish>", "exec"), namespace)  # noqa: S102
+    return namespace["polish"], namespace
+
+
+def test_polish_truncated_at_max_depth_falls_back_to_original():
+    polish, ns = _extract_polish_fn()
+    result = polish("original text here")
+    # A truncated polish at the depth limit is NOT a success.
+    assert result == "original text here"
+    assert ns["SUCCESSES"][0] == 0
+    assert ns["FALLBACKS"]
+
+
+def test_polish_accepts_complete_output():
+    polish, ns = _extract_polish_fn()
+    ns["call_groq"] = lambda text: ("polished!", "stop")
+    assert polish("raw") == "polished!"
+    assert ns["SUCCESSES"][0] == 1
+
+
+def test_shell_partial_file_uses_unpredictable_mktemp():
+    repo_root = Path(__file__).resolve().parent.parent
+    src = (
+        repo_root / "agent_reach" / "scripts" / "transcribe_xiaoyuzhou.sh"
+    ).read_text(encoding="utf-8")
+    assert '"$OUTPUT.partial.$$"' not in src
+    assert "mktemp" in src

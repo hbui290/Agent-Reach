@@ -112,6 +112,9 @@ def _unpacked_extension_files_present() -> bool:
 class OpenCLIStatus:
     installed: bool = False
     broken: bool = False
+    # The --version probe timed out or errored: the install state is UNKNOWN,
+    # not proven broken. Never trigger an npm reinstall on this signal.
+    probe_failed: bool = False
     daemon_running: bool = False
     extension_connected: bool = False
     extension_installed: bool = False
@@ -126,7 +129,12 @@ class OpenCLIStatus:
         Only a live daemon connection proves that a browser loaded and enabled
         the extension. Disk files alone are deliberately not enough.
         """
-        return self.installed and not self.broken and self.extension_connected
+        return (
+            self.installed
+            and not self.broken
+            and not self.probe_failed
+            and self.extension_connected
+        )
 
 
 def opencli_status(timeout: int = 10) -> OpenCLIStatus:
@@ -150,12 +158,17 @@ def opencli_status(timeout: int = 10) -> OpenCLIStatus:
             ),
         )
     if not version_probe.ok:
-        # Timeout / non-zero exit: keep the real output instead of guessing.
+        # Timeout / non-zero exit: the state is UNKNOWN, not proven broken.
+        # Marking this broken would wrongly advise an npm reinstall.
         detail = (version_probe.output or version_probe.hint).strip()[:300]
         return OpenCLIStatus(
             installed=True,
-            broken=True,
-            hint=f"opencli --version 检查失败（{version_probe.status}）：{detail}",
+            probe_failed=True,
+            hint=(
+                f"opencli --version 检查失败（{version_probe.status}），"
+                f"状态未知，并非确认损坏：{detail}\n"
+                "  请手动重试 `opencli --version`；仅当它明确无法执行时再重装"
+            ),
         )
 
     # stderr may carry node warnings; keep only the version itself.
@@ -207,6 +220,8 @@ def opencli_summary(st: OpenCLIStatus) -> str:
     """One-line state description for channel messages / install output."""
     if not st.installed:
         return "OpenCLI 未安装"
+    if st.probe_failed:
+        return "OpenCLI 版本检查超时/失败，状态未知（未确认损坏）"
     if st.broken:
         return "OpenCLI 无法执行（node 环境损坏）"
     if st.extension_connected:
