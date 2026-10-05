@@ -614,8 +614,8 @@ class TestDownloadAudioSafety:
         monkeypatch.setattr(tr, "_require", lambda _binary: None)
         monkeypatch.setattr(tr, "MAX_SOURCE_BYTES", 4)
 
-        def fake_run(_cmd, timeout=600):
-            (tmp_path / "source.m4a").write_bytes(b"audio")
+        def fake_run(cmd, timeout=600):
+            (Path(cmd[cmd.index("-o") + 1]).parent / "source.m4a").write_bytes(b"audio")
 
         monkeypatch.setattr(tr, "_run", fake_run)
 
@@ -639,13 +639,17 @@ class TestDownloadAudioSafety:
 
         def fake_run(cmd, timeout=600):
             captured["cmd"] = cmd
-            (tmp_path / "source.m4a").write_bytes(b"audio")
+            (Path(cmd[cmd.index("-o") + 1]).parent / "source.m4a").write_bytes(b"audio")
 
         monkeypatch.setattr(tr, "_run", fake_run)
 
         audio = tr.download_audio("https://example.com/watch?v=123", tmp_path)
 
-        assert audio == tmp_path / "source.m4a"
+        assert audio.name == "source.m4a"
+        assert audio.parent != tmp_path
+        assert audio.parent.parent == tmp_path
+        # The caller's out_dir itself must not gain a source.* file.
+        assert list(tmp_path.glob("source.*")) == []
         assert "--" in captured["cmd"]
         assert "--no-playlist" in captured["cmd"]
         marker_index = captured["cmd"].index("--")
@@ -659,7 +663,7 @@ class TestDownloadAudioSafety:
 
         def fake_run(cmd, timeout=600):
             captured["cmd"] = cmd
-            (tmp_path / "source.m4a").write_bytes(b"audio")
+            (Path(cmd[cmd.index("-o") + 1]).parent / "source.m4a").write_bytes(b"audio")
 
         monkeypatch.setattr(tr, "_run", fake_run)
 
@@ -682,7 +686,7 @@ class TestDownloadAudioSafety:
 
         def fake_run(cmd, timeout=600):
             captured["cmd"] = cmd
-            (tmp_path / "source.m4a").write_bytes(b"audio")
+            (Path(cmd[cmd.index("-o") + 1]).parent / "source.m4a").write_bytes(b"audio")
 
         monkeypatch.setattr(tr, "_run", fake_run)
 
@@ -765,7 +769,7 @@ class TestDownloadAudioSafety:
 
         def fake_run(cmd, timeout=600):
             captured["cmd"] = cmd
-            (tmp_path / "source.m4a").write_bytes(b"audio")
+            (Path(cmd[cmd.index("-o") + 1]).parent / "source.m4a").write_bytes(b"audio")
 
         monkeypatch.setattr(tr, "_run", fake_run)
 
@@ -782,7 +786,7 @@ class TestDownloadAudioYoutubeCookies:
 
         def fake_run(cmd, timeout=600):
             captured["cmd"] = cmd
-            (tmp_path / "source.m4a").write_bytes(b"audio")
+            (Path(cmd[cmd.index("-o") + 1]).parent / "source.m4a").write_bytes(b"audio")
 
         monkeypatch.setattr(tr, "_require", lambda _binary: None)
         monkeypatch.setattr(tr, "_run", fake_run)
@@ -892,7 +896,8 @@ class TestMediaGenerationBudget:
 
         def fake_run(cmd, timeout=600):
             captured["cmd"] = cmd
-            (tmp_path / "chunk_000.m4a").write_bytes(b"chunk")
+            # The segment pattern is the last argv element: <fresh-dir>/chunk_%03d.m4a
+            (Path(cmd[-1]).parent / "chunk_000.m4a").write_bytes(b"chunk")
 
         monkeypatch.setattr(tr, "_require", lambda _binary: None)
         monkeypatch.setattr(tr, "_run", fake_run)
