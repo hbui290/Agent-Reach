@@ -68,6 +68,10 @@ def normalize_public_http_url(url: str) -> str:
         # and yields the ASCII host that HTTP clients require.
         if not host.isascii():
             host = host.encode("idna").decode("ascii")
+        # IDNA can reintroduce a trailing dot (e.g. ``localhost．`` with a
+        # fullwidth full stop folds to ``localhost.``): strip it AFTER the
+        # conversion so the blocklist below cannot be bypassed.
+        host = host.rstrip(".")
     except (TypeError, ValueError):
         raise ValueError("only public HTTP(S) URLs are allowed") from None
 

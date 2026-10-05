@@ -54,7 +54,7 @@ def _name_msg(r: dict, escape) -> str:
     return text
 
 
-def format_report(results: Dict[str, dict]) -> str:
+def format_report(results: Dict[str, dict], config=None) -> str:
     """Format results as a readable text report (with Rich markup)."""
     lines = []
     lines.append("[bold cyan]Agent Reach 状态[/bold cyan]")
@@ -111,11 +111,17 @@ def format_report(results: Dict[str, dict]) -> str:
             "告诉你的 Agent「帮我装 XXX」即可"
         )
 
-    # Security check: config file permissions (Unix only)
+    # Security check: config file permissions (Unix only). Check the config
+    # path actually in use — not the default — so a custom --config path
+    # is not silently skipped.
     import stat
     import sys
 
-    config_path = Config.CONFIG_DIR / "config.yaml"
+    config_path = (
+        config.config_path
+        if config is not None and getattr(config, "config_path", None)
+        else Config.CONFIG_DIR / "config.yaml"
+    )
     if config_path.exists() and sys.platform != "win32":
         try:
             mode = config_path.stat().st_mode
@@ -124,7 +130,7 @@ def format_report(results: Dict[str, dict]) -> str:
                 lines.append(
                     "[bold red][!]  安全提示：config.yaml 权限过宽（其他用户可读或可写）[/bold red]"
                 )
-                lines.append("   修复：chmod 600 ~/.agent-reach/config.yaml")
+                lines.append(f"   修复：chmod 600 {config_path}")
         except OSError:
             pass
 
