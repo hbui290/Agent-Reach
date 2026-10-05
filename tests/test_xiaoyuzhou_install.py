@@ -323,7 +323,10 @@ def test_transcribe_script_key_fallback_drops_trailing_comment(tmp_path):
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes")
 def test_transcribe_script_output_swap_keeps_private_mode(tmp_path, bash_executable):
-    block = _script_snippet('PARTIAL="$OUTPUT.partial.$$"', "    exit 1\nfi\n")
+    block = _script_snippet(
+        '# 先完整写到同目录临时文件再替换',
+        '    echo "❌ 无法写入 ${OUTPUT}，文字稿输出如下：" >&2\n    cat "$FINAL"\n    exit 1\nfi\n',
+    )
     output = tmp_path / "agent-reach-transcript.abc"
     output.write_text("", encoding="utf-8")
     output.chmod(0o600)

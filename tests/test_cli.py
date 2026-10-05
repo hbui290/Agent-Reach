@@ -70,7 +70,7 @@ class TestCLI:
         monkeypatch.setattr(Config, "CONFIG_DIR", config_dir)
         monkeypatch.setattr(Config, "CONFIG_FILE", config_dir / "config.yaml")
         monkeypatch.setattr("agent_reach.doctor.check_all", lambda config: {})
-        monkeypatch.setattr("agent_reach.doctor.format_report", lambda results: "report")
+        monkeypatch.setattr("agent_reach.doctor.format_report", lambda results, config=None: "report")
         install_calls = []
         monkeypatch.setattr(
             cli,
@@ -337,7 +337,7 @@ class TestCLI:
         monkeypatch.setattr(cli, "_install_rdt_cli", lambda: calls.append("rdt") or True)
         monkeypatch.setattr(shutil, "which", lambda _name: None)
         monkeypatch.setattr("agent_reach.doctor.check_all", lambda _config: {})
-        monkeypatch.setattr("agent_reach.doctor.format_report", lambda _results: "report")
+        monkeypatch.setattr("agent_reach.doctor.format_report", lambda _results, _config=None: "report")
 
         resolved_env = detected_env if env == "auto" else env
         args = Namespace(
@@ -405,7 +405,7 @@ class TestCLI:
                 }
             },
         )
-        monkeypatch.setattr("agent_reach.doctor.format_report", lambda results: "report")
+        monkeypatch.setattr("agent_reach.doctor.format_report", lambda results, config=None: "report")
 
         cli._cmd_install(
             Namespace(
