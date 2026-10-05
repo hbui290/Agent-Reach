@@ -143,6 +143,13 @@ class Config:
             )
         except PrivatePathError as exc:
             raise ConfigSecurityError(str(exc)) from exc
+        except OSError as exc:
+            # Permission denied (or other OS-level read failure) must surface
+            # as a clean ConfigError, not a raw traceback.
+            reason = exc.strerror or exc.__class__.__name__
+            raise ConfigError(
+                f"无法读取配置文件：{self.config_path}（{reason}）"
+            ) from None
         except UnicodeError:
             raise ConfigError(f"配置文件不是有效的 UTF-8：{self.config_path}") from None
         if payload is None:
@@ -150,7 +157,7 @@ class Config:
             return
 
         try:
-            loaded = yaml.safe_load(payload) or {}
+            loaded = yaml.safe_load(payload)
         except yaml.YAMLError as exc:
             # The parser error quotes the offending line, which may hold a
             # secret: report only the position.
@@ -159,7 +166,12 @@ class Config:
             raise ConfigError(
                 f"配置文件 YAML 格式错误{where}：{self.config_path}"
             ) from None
+        if loaded is None:
+            # Empty file (or only comments) — genuinely no config.
+            loaded = {}
         if not isinstance(loaded, dict):
+            # A scalar like ``false``/``0``/``[]`` is not an empty config;
+            # silently treating it as one hides a broken file.
             raise ConfigError("配置文件顶层必须是对象")
         self.data = loaded
 
@@ -209,6 +221,29 @@ class Config:
         except BaseException:
             if previous is not missing:
                 self.data[key] = previous
+            raise
+
+    def set_many(self, mapping: dict):
+        """Set several config values with a single atomic save.
+
+        Two separate ``set()`` calls can leave a half-written pair on disk
+        (e.g. ``twitter_auth_token`` saved but ``twitter_ct0`` failing).
+        ``set_many`` applies all keys and saves once, rolling back every
+        key in memory if the save fails.
+        """
+        if self.read_only:
+            raise ConfigReadOnlyError("当前配置是只读的，不能修改")
+        missing = object()
+        previous = {key: self.data.get(key, missing) for key in mapping}
+        self.data.update(mapping)
+        try:
+            self.save()
+        except BaseException:
+            for key, old in previous.items():
+                if old is missing:
+                    self.data.pop(key, None)
+                else:
+                    self.data[key] = old
             raise
 
     def is_configured(self, feature: str) -> bool:

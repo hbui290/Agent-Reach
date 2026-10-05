@@ -274,10 +274,15 @@ def download_audio(
     *,
     config: Optional[Config] = None,
 ) -> Path:
-    """Download audio with yt-dlp into out_dir; return the resulting file path."""
+    """Download audio with yt-dlp into a fresh child dir; return the file path."""
     _assert_safe_public_url(url)
     _require("yt-dlp")
-    template = out_dir / "source.%(ext)s"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # A fresh child dir per download: a reused out_dir may hold a stale
+    # ``source.*`` from an earlier run, and the caller's own files in
+    # out_dir must never be picked up or overwritten.
+    dl_dir = Path(tempfile.mkdtemp(prefix="download-", dir=out_dir))
+    template = dl_dir / "source.%(ext)s"
     _run(
         [
             "yt-dlp",
@@ -297,7 +302,7 @@ def download_audio(
         ],
         timeout=1800,  # long podcasts over slow networks — generous but bounded
     )
-    files = sorted(out_dir.glob("source.*"))
+    files = sorted(dl_dir.glob("source.*"))
     if not files:
         limit_mib = MAX_SOURCE_BYTES // (1024 * 1024)
         raise TranscribeError(
@@ -311,7 +316,11 @@ def download_audio(
 def compress_audio(src: Path, out_dir: Path) -> Path:
     """Re-encode to mono / 16kHz / 32kbps m4a — keeps most content under 25MB."""
     _require("ffmpeg")
-    dst = out_dir / "compressed.m4a"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # Fresh child dir so a caller-owned ``compressed.m4a`` in out_dir is
+    # never silently overwritten.
+    cmp_dir = Path(tempfile.mkdtemp(prefix="compress-", dir=out_dir))
+    dst = cmp_dir / "compressed.m4a"
     _run(
         [
             "ffmpeg",
@@ -348,11 +357,14 @@ def chunk_audio(src: Path, out_dir: Path, segment_seconds: int = CHUNK_SECONDS) 
             f"segment duration {segment_seconds}s could create "
             f"{possible_chunks} chunks"
         )
-    # A reused out_dir may hold chunks from a longer earlier file.
-    for stale in out_dir.glob("chunk_*.m4a"):
-        stale.unlink()
+    # A reused out_dir may hold chunks from a longer earlier file, and it may
+    # hold caller-owned ``chunk_*.m4a`` files that must never be deleted or
+    # overwritten — so chunk into a fresh child dir instead of cleaning
+    # out_dir.
     _require("ffmpeg")
-    pattern = out_dir / "chunk_%03d.m4a"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    chunks_dir = Path(tempfile.mkdtemp(prefix="chunks-", dir=out_dir))
+    pattern = chunks_dir / "chunk_%03d.m4a"
     _run(
         [
             "ffmpeg",
@@ -376,7 +388,7 @@ def chunk_audio(src: Path, out_dir: Path, segment_seconds: int = CHUNK_SECONDS) 
             str(pattern.absolute()),
         ]
     )
-    chunks = sorted(out_dir.glob("chunk_*.m4a"))
+    chunks = sorted(chunks_dir.glob("chunk_*.m4a"))
     if not chunks:
         raise TranscribeError("ffmpeg produced no chunks")
     return chunks

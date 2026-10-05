@@ -26,6 +26,29 @@ _opener = urllib.request.build_opener(
     urllib.request.HTTPCookieProcessor(_cookie_jar),
 )
 _cookies_initialized = False
+# Fingerprint of what the jar was initialized from: the configured
+# ``xueqiu_cookie`` string, or None for the anonymous fallback.
+_cookies_init_fingerprint = None
+
+
+def _reset_cookie_jar() -> None:
+    """Drop every cookie and rebuild the opener around a fresh jar."""
+    global _cookie_jar, _opener
+    _cookie_jar = http.cookiejar.CookieJar()
+    _opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(_cookie_jar),
+    )
+
+
+def _config_cookie_string(config=None):
+    """Return the configured ``xueqiu_cookie`` string, or None."""
+    try:
+        from ..config import Config
+
+        cfg = config if config is not None else Config(read_only=True)
+        return cfg.get("xueqiu_cookie") or None
+    except Exception:
+        return None
 
 
 def _inject_cookie_string(cookie_str: str) -> None:
@@ -81,11 +104,20 @@ def _ensure_cookies(config=None) -> None:
        API return HTTP 400). Features that need a logged-in session still
        require a saved cookie.
     """
-    global _cookies_initialized
+    global _cookies_initialized, _cookies_init_fingerprint
+    fingerprint = _config_cookie_string(config)
     if _cookies_initialized:
-        return
+        if _cookies_init_fingerprint != fingerprint:
+            # The config changed in the same process: drop the old jar so
+            # stale cookies from the previous config can never leak into
+            # requests made with the new one.
+            _reset_cookie_jar()
+            _cookies_initialized = False
+        else:
+            return
     if _load_cookies_from_config(config):
         _cookies_initialized = True
+        _cookies_init_fingerprint = fingerprint
         return
     # Fallback: visit /hq to pick up the anonymous xq_a_token (plus acw_tc).
     # This is not sufficient for authenticated APIs but works for public
@@ -93,6 +125,7 @@ def _ensure_cookies(config=None) -> None:
     req = urllib.request.Request(_XUEQIU_HOME, headers={"User-Agent": _UA})
     _opener.open(req, timeout=_TIMEOUT)
     _cookies_initialized = True
+    _cookies_init_fingerprint = fingerprint
 
 
 def _get_json(url: str, config=None) -> Any:
