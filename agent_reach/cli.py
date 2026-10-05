@@ -366,8 +366,7 @@ def _cmd_install(args):
             mode = "dry-run" if dry_run else "safe"
             print(f"[{mode}] Would save network proxy")
         else:
-            config.set("proxy", args.proxy)
-            config.set("bilibili_proxy", args.proxy)  # legacy key
+            config.set_many({"proxy": args.proxy, "bilibili_proxy": args.proxy})
             print("✅ 代理已保存（Agent 访问受限网络时使用）")
 
     # ── Install core system dependencies (lightweight, always) ──
@@ -544,11 +543,14 @@ def _install_skill(force: bool = True):
     def _copy_skill_dir(target: str) -> str | None:
         """Copy entire skill directory (locale-specific SKILL.md + references/).
 
-        Transactional: the new content is fully read before the old install
-        is touched, the old install is moved aside, and any failure restores
-        it — a failed reinstall can never delete the working skill.
+        Stage a complete replacement beside the target before moving the
+        old entry. Restore it on publication failure; retain the backup and
+        report its path if restoration also fails.
         """
         import tempfile
+
+        if not force and os.path.exists(os.path.join(target, "SKILL.md")):
+            return "preserved"
 
         try:
             skill_md, refs = _read_skill_payload()
@@ -556,50 +558,48 @@ def _install_skill(force: bool = True):
             print(f"  Warning: Could not read bundled skill content: {e}")
             return None
 
+        work_dir = None
+        backup_target = None
+        keep_backup = False
         try:
-            if not force and os.path.exists(os.path.join(target, "SKILL.md")):
-                return "preserved"
+            work_dir = tempfile.mkdtemp(
+                prefix=".agent-reach-", dir=os.path.dirname(target),
+            )
+            staging = os.path.join(work_dir, "new")
+            os.makedirs(staging)
+            with open(os.path.join(staging, "SKILL.md"), "w", encoding="utf-8") as f:
+                f.write(skill_md)
+            refs_target = os.path.join(staging, "references")
+            os.makedirs(refs_target)
+            for name, content in refs.items():
+                with open(os.path.join(refs_target, name), "w", encoding="utf-8") as f:
+                    f.write(content)
 
-            # Move the existing install aside first. os.rename moves a
-            # symlink itself (dotfiles setups), which shutil.rmtree could
-            # not handle — and gives us a backup to restore on failure.
-            backup_parent = None
-            backup_target = None
-            if os.path.islink(target) or os.path.exists(target):
-                backup_parent = tempfile.mkdtemp(prefix="agent-reach-skill-backup-")
-                backup_target = os.path.join(backup_parent, "agent-reach")
+            # Rename the entry, not a symlink's referent. All paths stay on
+            # the target filesystem, including HOME on a separate volume.
+            if os.path.lexists(target):
+                backup_target = os.path.join(work_dir, "old")
                 os.rename(target, backup_target)
-
             try:
-                os.makedirs(target, exist_ok=True)
-
-                # Copy SKILL.md using the selected locale file
-                with open(os.path.join(target, "SKILL.md"), "w", encoding="utf-8") as f:
-                    f.write(skill_md)
-
-                # Copy references/ directory
-                refs_target = os.path.join(target, "references")
-                os.makedirs(refs_target, exist_ok=True)
-                for name, content in refs.items():
-                    with open(os.path.join(refs_target, name), "w", encoding="utf-8") as f:
-                        f.write(content)
+                os.rename(staging, target)
             except Exception:
-                # Roll back: drop the partial install and restore the old one.
-                if os.path.islink(target):
-                    os.unlink(target)
-                elif os.path.exists(target):
-                    shutil.rmtree(target, ignore_errors=True)
                 if backup_target is not None:
-                    os.rename(backup_target, target)
+                    try:
+                        os.rename(backup_target, target)
+                    except Exception as restore_error:
+                        keep_backup = True
+                        print(
+                            f"  Warning: Could not restore skill: {restore_error}; "
+                            f"old install retained at {backup_target}"
+                        )
                 raise
-            finally:
-                if backup_parent is not None:
-                    shutil.rmtree(backup_parent, ignore_errors=True)
-
             return "installed"
         except Exception as e:
             print(f"  Warning: Could not install skill: {e}")
             return None
+        finally:
+            if work_dir is not None and not keep_backup:
+                shutil.rmtree(work_dir, ignore_errors=True)
 
     # Install into every known skill root that already exists.
     skill_dirs = [

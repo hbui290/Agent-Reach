@@ -28,6 +28,16 @@ def test_channel_registry_contract():
 def test_channel_check_contract_with_minimal_runtime(monkeypatch, tmp_path):
     # Keep contract tests deterministic by simulating "deps mostly absent".
     monkeypatch.setattr("shutil.which", lambda _cmd: None)
+    import urllib.request
+    from urllib.error import URLError
+
+    def _no_net(*_a, **_k):
+        raise URLError("offline")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _no_net)
+    import agent_reach.channels.xueqiu as xueqiu_mod
+    monkeypatch.setattr(xueqiu_mod, "_cookies_initialized", True)
+    monkeypatch.setattr(xueqiu_mod._opener, "open", _no_net)
     config = Config(config_path=tmp_path / "config.yaml")
 
     for ch in get_all_channels():

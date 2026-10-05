@@ -3,6 +3,7 @@
 
 import os as _os
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -491,6 +492,7 @@ def test_xueqiu_cookie_jar_resets_when_config_changes(monkeypatch):
         xq._reset_cookie_jar()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission check")
 def test_format_report_checks_active_custom_config_path(tmp_path):
     from agent_reach.doctor import format_report
 
@@ -503,6 +505,7 @@ def test_format_report_checks_active_custom_config_path(tmp_path):
     assert str(cfg_path) in report
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission check")
 def test_format_report_without_config_still_checks_default(monkeypatch, tmp_path):
     from agent_reach.config import Config as ConfigCls
     from agent_reach.doctor import format_report
